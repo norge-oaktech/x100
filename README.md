@@ -1,8 +1,31 @@
-# x100 — Phase 1 (Onboarding)
+# x100 — Phase 1 + Phase 2 (Onboarding + first generated asset)
 
-Data-driven copy-generation app. This delivery covers **Phase 1 only**:
-client onboarding intake. No Anthropic calls, no file generation, no exports
-yet — those are Phases 2–4.
+Data-driven copy-generation app. This delivery covers **Phases 1–2**:
+client onboarding intake, plus generation for one asset end-to-end (Cold
+Outreach Email — Investor Introduction) to validate the pipeline before
+scaling to the full 8-asset prototype set. File export (docx/pdf) is
+Phase 3/4 — generated copy currently displays as text on the internal
+dashboard only.
+
+## Phase 2 additions
+
+- `config/assets.ts` — the data-driven asset template registry. Each entry
+  has an id, label, system prompt, and a `buildUserPrompt` function that
+  pulls specific fields out of the saved onboarding answers by field id.
+  Adding asset #2 through #100 later is appending an object here — no other
+  file needs to change.
+- `lib/anthropic/generate.ts` — thin wrapper around the Anthropic SDK,
+  currently using `claude-sonnet-5`.
+- `app/api/generate/route.ts` — the only place that calls Anthropic.
+  Auth-gated to logged-in team members only (checks the Supabase session);
+  the public onboarding form has no path to this route. Pulls the project's
+  saved answers, builds the prompt from `config/assets.ts`, calls Claude,
+  writes the result to `generated_assets`.
+- Project detail page now shows a "Generate" button per configured asset,
+  with the result displayed inline once complete.
+
+**You need `ANTHROPIC_API_KEY` set (Vercel + local `.env.local`) for
+generation to work** — everything else in Phase 1 still works without it.
 
 ## What's built in this phase
 
@@ -70,13 +93,14 @@ Visit `http://localhost:3000/login` to sign in as your team, or
 `http://localhost:3000/dashboard` to create your first test project and get
 an onboarding link.
 
-## What I need from you to move to Phase 2
+## What I need from you to move to Phase 3
 
-Once you've reviewed Phase 1 and it works the way you expect:
-- Confirm the 8-asset shortlist from before (website hero, landing page,
-  cold outreach email, follow-up email, LinkedIn post, one-pager, investor
-  FAQ, voicemail script) or adjust it
-- Any example copy/briefs you already have for those 8, if you want the
+Once you've tested the Cold Outreach Email generation and are happy with
+the output quality (or have feedback on tone/prompt tuning):
+- Confirm you're ready to add the remaining 7 assets (website hero, landing
+  page, follow-up email, LinkedIn post, one-pager, investor FAQ, voicemail
+  script) as config entries the same way
+- Any example copy/briefs you already have for those 7, if you want the
   prompts tuned to match an existing voice rather than written from scratch
-- Confirmation on Phase 4's delivery target (Supabase Storage vs SharePoint)
-  so Phase 2's asset config can be built with the right output path in mind
+- Confirmation on delivery target for file export (Supabase Storage vs
+  SharePoint) so Phase 3/4 builds the right output path from the start

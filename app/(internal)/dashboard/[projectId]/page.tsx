@@ -1,7 +1,13 @@
 import { createClient } from "@/lib/supabase/server";
 import { ONBOARDING_SECTIONS } from "@/config/onboardingSchema";
 import { notFound } from "next/navigation";
-import type { OnboardingResponse, Project, Client } from "@/types/database";
+import type {
+  OnboardingResponse,
+  Project,
+  Client,
+  GeneratedAsset,
+} from "@/types/database";
+import { GenerateAssetPanel } from "./GenerateAssetPanel";
 
 export default async function ProjectDetailPage({
   params,
@@ -24,11 +30,19 @@ export default async function ProjectDetailPage({
     .eq("project_id", project.id)
     .maybeSingle<OnboardingResponse>();
 
+  const { data: generatedAssets } = await supabase
+    .from("generated_assets")
+    .select("*")
+    .eq("project_id", project.id)
+    .returns<GeneratedAsset[]>();
+
   const onboardingUrl = `${
     process.env.NEXT_PUBLIC_APP_URL ?? ""
   }/onboard/${project.slug}`;
 
   const completedCount = response?.completed_sections?.length ?? 0;
+  const onboardingComplete = project.status !== "awaiting_onboarding" &&
+    project.status !== "onboarding_in_progress";
 
   return (
     <main className="mx-auto max-w-3xl p-8">
@@ -57,6 +71,12 @@ export default async function ProjectDetailPage({
             ).toLocaleDateString()}`}
         </p>
       </div>
+
+      <GenerateAssetPanel
+        projectId={project.id}
+        onboardingComplete={onboardingComplete}
+        initialAssets={generatedAssets ?? []}
+      />
 
       {!response ? (
         <p className="mt-8 text-sm text-slate-500">
