@@ -9,20 +9,27 @@ dashboard only.
 
 ## Phase 2 additions
 
-- `config/assets.ts` — the data-driven asset template registry. Each entry
-  has an id, label, system prompt, and a `buildUserPrompt` function that
-  pulls specific fields out of the saved onboarding answers by field id.
-  Adding asset #2 through #100 later is appending an object here — no other
-  file needs to change.
-- `lib/anthropic/generate.ts` — thin wrapper around the Anthropic SDK,
-  currently using `claude-sonnet-5`.
-- `app/api/generate/route.ts` — the only place that calls Anthropic.
-  Auth-gated to logged-in team members only (checks the Supabase session);
-  the public onboarding form has no path to this route. Pulls the project's
-  saved answers, builds the prompt from `config/assets.ts`, calls Claude,
-  writes the result to `generated_assets`.
-- Project detail page now shows a "Generate" button per configured asset,
-  with the result displayed inline once complete.
+- `config/assets.ts` — the data-driven asset template registry, now built
+  from your real prompt materials (12 assets: Cold Outreach Email, 6
+  website pages, Investor Landing Page, Investor Teaser, Pitch Deck, 2
+  Event Presentation variants, Executive Briefing). This **replaces** the
+  earlier 8-asset placeholder list.
+- `config/knowledgeBase.ts` — shared helper that serializes every answered
+  onboarding field into a "FUND KNOWLEDGE BASE" block, grouped by section.
+  Every asset's prompt gets this fresh on each generation call, rather than
+  each asset hand-picking specific fields — this is what lets long-form
+  assets (website pages, decks) draw on the full intake without a bespoke
+  field list per asset.
+- **Known gap:** the Executive Briefing asset was drafted from a structural
+  outline only — the source document you sent didn't contain actual prompt
+  instructions (just a table of contents). Treat its output as a first
+  draft needing more review than the others until you send the real prompt.
+- **Landing Page naming:** built as a single asset for now — the "FI / FR"
+  distinction in your source filename wasn't resolved yet. Trivial to split
+  into two variants once clarified, since it's just another config entry.
+- Decks (Pitch Deck, both Event Presentations) are marked `outputFormat:
+  "pptx"` in the config for when file export is built — right now, like
+  everything else in Phase 2, they only display as text on the dashboard.
 
 **You need `ANTHROPIC_API_KEY` set (Vercel + local `.env.local`) for
 generation to work** — everything else in Phase 1 still works without it.
