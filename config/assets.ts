@@ -1,23 +1,31 @@
 // Data-driven asset template registry.
 //
-// Adding asset #13+ later = appending an object to ASSET_TEMPLATES below.
+// Adding asset #20+ later = appending an object to ASSET_TEMPLATES below.
 // Nothing else in the app branches on individual asset ids — the generate
 // route and the dashboard panel both just iterate this array.
 //
-// System prompts below are adapted from the client's own prompt documents
-// (PROMPT_FOR_WEBSITE_COPY.docx, Prompt_Landing_Page_FI___FR.docx,
-// Prompt_Event_Presentation.docx, Prompt_Teaser.docx, Prompt_Pitch_Deck.docx)
-// with two changes: (1) removed multi-turn "thread" language ("this thread
-// already contains...", "ask if you should proceed") since each asset is a
-// single generation call, not a back-and-forth conversation -- the fund
-// knowledge base is passed fresh on every call via buildKnowledgeBase();
-// (2) the Website Copy prompt originally covered all 6 pages in one
-// response -- split into 6 separate asset entries here so each page is its
-// own generation, review, and (later) downloadable file.
+// Two tiers (see AssetTemplate.tier): "foundational" documents (ICP, Brand
+// Identity, Brand Guidelines, Messaging Framework, Case Studies, DDQ) are
+// generated first and require approval; "marketing" assets (website, decks,
+// etc.) are locked until every foundational asset is approved — enforced
+// in app/api/generate/route.ts, not just the UI.
 //
-// Executive Briefing has no source prompt (the uploaded doc was a table of
-// contents only) -- its system prompt below was drafted from that outline
-// and should be reviewed once real source materials are available.
+// System prompts for the marketing-tier assets below are adapted from the
+// client's own prompt documents (PROMPT_FOR_WEBSITE_COPY.docx,
+// Prompt_Landing_Page_FI___FR.docx, Prompt_Event_Presentation.docx,
+// Prompt_Teaser.docx, Prompt_Pitch_Deck.docx) with two changes: (1) removed
+// multi-turn "thread" language ("this thread already contains...", "ask if
+// you should proceed") since each asset is a single generation call, not a
+// back-and-forth conversation — the fund knowledge base is passed fresh on
+// every call via buildKnowledgeBase(); (2) the Website Copy prompt
+// originally covered all 6 pages in one response — split into 6 separate
+// asset entries here so each page is its own generation, review, and
+// (later) downloadable file.
+//
+// Executive Briefing and all 6 foundational documents have no source
+// prompt (no materials were provided) — their system prompts were drafted
+// from standard practice / structural outlines and should be reviewed once
+// real source materials are available.
 
 import { buildKnowledgeBase } from "./knowledgeBase";
 
@@ -29,7 +37,8 @@ export type AssetCategory =
   | "landing_page"
   | "teaser"
   | "presentation"
-  | "briefing";
+  | "briefing"
+  | "foundational";
 
 type OnboardingAnswers = Record<string, string | string[]>;
 
@@ -41,7 +50,33 @@ export interface AssetTemplate {
   systemPrompt: string;
   buildUserPrompt: (answers: OnboardingAnswers) => string;
   maxTokens?: number;
+  // "foundational" = ICP/Brand Identity/etc — generated first, requires
+  // approval, gates every "marketing" asset from being generated at all.
+  // "marketing" = the client-facing deliverables (website, decks, etc.) —
+  // no approval step of their own, but blocked until every foundational
+  // asset for the project is approved.
+  tier: "foundational" | "marketing";
 }
+
+// All foundational assets — generated together as a batch, all show
+// approve/reject in the UI. Only REQUIRED_FOUNDATIONAL_ASSET_IDS gate
+// marketing-tier generation; Case Studies and DDQ still go through review
+// but don't block anything downstream.
+export const FOUNDATIONAL_ASSET_IDS = [
+  "icp_generation",
+  "brand_identity",
+  "brand_guidelines",
+  "messaging_framework",
+  "case_studies",
+  "ddq_drafting",
+] as const;
+
+export const REQUIRED_FOUNDATIONAL_ASSET_IDS = [
+  "icp_generation",
+  "brand_identity",
+  "brand_guidelines",
+  "messaging_framework",
+] as const;
 
 const KB_GUARDRAILS = `
 Use only the fund knowledge base provided below as your source of truth. Do not invent returns, performance figures, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or legal/fund structure details that are not present in the knowledge base. If a required detail is missing, omit it, write "Not specified," or use compliant general wording -- do not fabricate a placeholder value.`;
@@ -54,10 +89,195 @@ ${buildKnowledgeBase(answers)}`;
 }
 
 export const ASSET_TEMPLATES: AssetTemplate[] = [
+  // =====================================================================
+  // FOUNDATIONAL DOCUMENTS
+  // Generated first, require approval, gate every marketing-tier asset.
+  // No source prompt materials were provided for these six -- all drafted
+  // from standard practice + the fund's knowledge base. Flag for review,
+  // same as Executive Briefing below.
+  // =====================================================================
+  {
+    id: "icp_generation",
+    label: "ICP Generation — Ideal Investor Profile",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are an institutional investor-relations strategist. Draft an Ideal Customer Profile (ICP) document identifying the fund's ideal prospective investor -- an internal reference document the fundraising team will use to prioritize outreach, not investor-facing copy.
+
+Do not invent named institutions, specific AUM figures for prospects, or investor counts not present in the knowledge base -- describe investor archetypes and characteristics instead of naming real organizations.
+
+STRUCTURE
+1. Primary ICP Archetype -- a named, descriptive profile (e.g. "Regional Nordic Pension Allocator") synthesized from the fund's stated target investor type, motivations, and objections
+2. Firmographic Profile -- investor type, typical check size, geography, mandate fit, decision-making structure
+3. Psychographic Profile -- what this investor values, how they evaluate opportunities, risk tolerance, time horizon
+4. Motivations & Triggers -- why this investor allocates to funds like this one, based on the knowledge base's stated investor motivations
+5. Objections & Concerns -- likely hesitations and how the fund's positioning addresses them
+6. Where to Find Them -- channels, events, networks, referral sources consistent with the fund's stated fundraising approach
+7. Secondary ICP Archetype (if the knowledge base supports a distinct second segment; omit this section if not)
+8. Disqualifiers -- investor types that are a poor fit, to help the team prioritize
+
+OUTPUT FORMAT
+Use clear section headers. Keep each section concise and scannable (bullets over paragraphs where natural). Output only the finished document -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard IR/fundraising practice, not the client's own source instructions -- flag any output from this template for review.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the complete Ideal Customer Profile document described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "brand_identity",
+    label: "Brand Identity",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are a brand strategist specializing in institutional financial services and private markets brands. Draft a Brand Identity document -- the strategic foundation other creative and copy work will be built on, not a visual style guide (that's a separate document).
+
+Do not invent facts, team history, or claims not present in the knowledge base.
+
+STRUCTURE
+1. Brand Positioning Statement -- one clear paragraph: for [target investor], [fund name] is the [category] that [key differentiator], because [reason to believe]
+2. Mission -- why the fund exists, grounded in the knowledge base's stated vision and philosophy
+3. Brand Personality -- 4-6 personality traits (e.g. "disciplined, not flashy"), each with a one-line explanation tied to the fund's stated communication style
+4. Voice Attributes -- 3-5 voice characteristics as a "this, not that" pair (e.g. "Precise, not vague" / "Confident, not boastful"), grounded in the knowledge base's stated tone and forbidden language
+5. Tagline Directions -- 3-5 candidate taglines or positioning lines for the team to choose from (clearly marked as options, not a final decision)
+6. Visual Direction Summary -- a short paragraph translating the knowledge base's stated visual style preferences into brand-identity language (the full practical guide belongs in Brand Guidelines, not here)
+
+OUTPUT FORMAT
+Use clear section headers. Output only the finished document -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard brand-strategy practice, not the client's own source instructions -- flag any output from this template for review.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the complete Brand Identity document described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "brand_guidelines",
+    label: "Brand Guidelines",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are a brand designer drafting practical Brand Guidelines for a private investment fund -- the reference document a copywriter or designer would check before producing any asset. This is distinct from Brand Identity (the strategic document) -- this one is operational and prescriptive.
+
+Do not invent specific hex codes, font names, or logo specifications not present in the knowledge base -- where the knowledge base gives a general direction (e.g. "navy and off-white palette") rather than exact specifications, present it as a direction for the design team to finalize, not as a final locked spec.
+
+STRUCTURE
+1. Tone of Voice -- 4-6 concrete dos and don'ts for writing (e.g. "Do: lead with the investment thesis. Don't: use urgency language or superlatives"), grounded in the knowledge base's stated tone, forbidden language, and audience
+2. Vocabulary -- preferred terms vs. terms to avoid, specific to this fund (e.g. how it refers to itself, its investors, its strategy)
+3. Visual Direction -- palette direction, typography direction, and imagery style as described in the knowledge base, clearly marked "[TO BE FINALIZED BY DESIGN TEAM]" wherever the knowledge base doesn't give specifics
+4. Logo Usage -- general placeholder guidance (clear space, minimum size, don'ts) since no actual logo file is available in this system
+5. Content Formatting Conventions -- how numbers, dates, fund terms, and disclaimers should be formatted consistently across assets
+6. Quick Reference Checklist -- a short checklist a writer can run through before submitting any asset for review
+
+OUTPUT FORMAT
+Use clear section headers. Output only the finished document -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard brand-guidelines practice, not the client's own source instructions -- flag any output from this template for review.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the complete Brand Guidelines document described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "messaging_framework",
+    label: "Messaging Framework",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are a messaging strategist for institutional private markets fundraising. Draft a Messaging Framework -- the core set of messages every other asset (website, decks, emails) should trace back to, for consistency across all downstream copy.
+
+Do not invent returns, track record figures, or claims not present in the knowledge base.
+
+STRUCTURE
+1. One-Liner -- a single sentence describing what the fund does and for whom
+2. Elevator Pitch -- a 3-4 sentence verbal pitch
+3. Core Message Pillars -- 3-4 pillars (e.g. "Disciplined Strategy," "Operator-Led Execution," "Downside Protection"), each with: the pillar statement, 2-3 supporting proof points from the knowledge base, and a one-line audience-facing version of the message
+4. Boilerplate -- a standard 2-3 sentence "About [Fund]" paragraph for use in press materials, email signatures, and document footers
+5. Objection-Handling Messages -- for each investor objection noted in the knowledge base, a short reframe message the team can use in conversation
+6. Words We Use / Words We Avoid -- a short reference list grounded in the knowledge base's stated tone and forbidden language
+
+OUTPUT FORMAT
+Use clear section headers. Output only the finished document -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard messaging-strategy practice, not the client's own source instructions -- flag any output from this template for review.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the complete Messaging Framework document described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "case_studies",
+    label: "Case Studies",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are an investor-relations writer drafting case study content for a private investment fund, based strictly on the track record, prior exits, and portfolio information present in the knowledge base.
+
+CRITICAL: if the knowledge base does not contain specific, named prior investments, exits, or portfolio company outcomes, do NOT invent them. In that situation, output a single section titled "Case Studies -- Insufficient Source Data" explaining exactly what specific information (company names, deal details, outcomes, dates) would be needed from the fund to draft real case studies, and stop there. Do not produce a fabricated or "illustrative" case study to fill the gap.
+
+If the knowledge base DOES contain specific prior investment or exit details, structure each case study as:
+1. Situation -- the opportunity/context at the time of investment
+2. Approach -- what the fund/team did
+3. Outcome -- the result, using only figures present in the knowledge base
+4. Relevance -- why this example is representative of the fund's current strategy
+
+OUTPUT FORMAT
+One case study per knowledge-base-supported example, clearly headed by company/deal name if available or a generic descriptor if the name isn't provided. Output only the finished document -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard IR practice, not the client's own source instructions -- flag any output from this template for review, and treat the "insufficient data" outcome as expected and correct, not a failure.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the case study document described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "ddq_drafting",
+    label: "DDQ Drafting — Due Diligence Questionnaire",
+    category: "foundational",
+    outputFormat: "docx",
+    tier: "foundational",
+    systemPrompt:
+      `You are drafting a first-pass response to a standard institutional Due Diligence Questionnaire (DDQ) for a private investment fund, in the structure LPs and consultants typically expect (modeled on standard institutional DDQ categories such as those used by ILPA). This is a compliance-adjacent legal/operational document -- accuracy and honesty about gaps matter more than completeness.
+
+CRITICAL: for every question where the knowledge base does not contain a specific, verifiable answer, respond with "To be completed by [Fund]'s legal/compliance team" -- do not guess, estimate, or infer legal, regulatory, or structural details. This applies especially to entity names, registration status, fund terms, service providers, and compliance history.
+
+STRUCTURE (standard DDQ sections)
+1. Firm Overview -- entity name, formation, ownership structure, AUM, offices
+2. Team -- key personnel, roles, relevant experience (only names/roles present in the knowledge base)
+3. Investment Strategy -- mandate, sector/geographic focus, stage, target returns, portfolio construction
+4. Track Record -- prior fund performance and exits (only if present in the knowledge base; otherwise "To be completed")
+5. Fund Terms -- fund size, fees, carry, hurdle, fund life, capital call mechanics
+6. Service Providers -- administrator, auditor, legal counsel, custodian/bank
+7. Compliance & Regulatory -- registration status, regulatory oversight, compliance function
+8. Risk Management -- investment risk process, operational risk controls
+9. ESG -- policy and integration approach, if present in the knowledge base
+10. Operations -- reporting cadence, valuation policy, cybersecurity/data practices
+
+OUTPUT FORMAT
+Number each section and question clearly. Use "To be completed by [Fund]'s legal/compliance team" liberally rather than inferring -- this is expected to be a partially-complete first draft that the fund's own team and counsel finish, not a final document. Output only the finished draft -- no preamble.
+
+NOTE: this asset's prompt was drafted from standard institutional DDQ structure, not the client's own source instructions or actual legal counsel review -- this document MUST be reviewed by qualified legal/compliance counsel before ever being shared with an investor, regardless of how complete it looks.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Draft the first-pass DDQ response described above.", a),
+    maxTokens: 4000,
+  },
+
+  // =====================================================================
+  // MARKETING ASSETS (tier: "marketing")
+  // Locked until every foundational asset above is approved.
+  // =====================================================================
   {
     id: "cold_outreach_email_1",
     label: "Cold Outreach Email — Investor Introduction",
     category: "email",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       "You are a placement-agent-caliber copywriter writing on behalf of a fund's Managing Partner to a prospective LP who has never interacted with the fund. Match the fund's stated communication style exactly -- do not default to generic salesy language. Keep the email under 150 words. Output a Subject line on the first line, then a blank line, then the email body. Do not include any preamble, explanation, or commentary -- output only the subject and email body." +
@@ -74,6 +294,7 @@ export const ASSET_TEMPLATES: AssetTemplate[] = [
     id: "website_homepage",
     label: "Website — Homepage",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter and investment communications strategist with deep experience writing investor-facing websites for alternative investment funds, private equity firms, venture capital firms, real estate funds, private credit funds, hedge funds, and emerging managers.
@@ -111,6 +332,7 @@ Use clear section headers. Keep paragraphs concise and readable. Include suggest
     id: "website_fund_page",
     label: "Website — Fund Page",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund. The tone should be sophisticated, investor-facing, clear, institutional but approachable, and compliant-aware -- clarity over hype.
@@ -129,6 +351,7 @@ Use clear section headers, short paragraphs, and suggested CTAs where appropriat
     id: "website_about_page",
     label: "Website — About Page",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund.
@@ -147,6 +370,7 @@ Use clear section headers and short, readable paragraphs. Output only the finish
     id: "website_contact_page",
     label: "Website — Contact Page",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund.
@@ -163,6 +387,7 @@ Do not invent contact details, entity names, or legal disclosures not present in
     id: "website_terms_of_service",
     label: "Website — Terms of Service",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are drafting a professional Terms of Service page for a private investment fund's website. Write in professional legal-style language suitable for a fund website while remaining reasonably understandable to a non-legal reader.
@@ -179,6 +404,7 @@ This is a template requiring legal review before publishing -- note that clearly
     id: "website_privacy_policy",
     label: "Website — Privacy Policy",
     category: "website",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are drafting a professional Privacy Policy page for a private investment fund's website. The policy should feel professional, modern, legally aware, and easy to follow.
@@ -196,6 +422,7 @@ This is a template requiring legal review before publishing -- note that clearly
     id: "investor_landing_page",
     label: "Investor Landing Page — Data Room Request",
     category: "landing_page",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert in private equity, alternative funds, emerging manager fundraising, investor psychology, institutional-grade capital raising, and high-converting investor landing page copywriting.
@@ -246,6 +473,7 @@ Return, in order: (1) the full landing page copy section by section (Section Nam
     id: "investor_teaser",
     label: "Investor Teaser",
     category: "teaser",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets copywriter and investor communications strategist specializing in institutional-quality fund teasers and capital raising materials.
@@ -278,6 +506,7 @@ Start with a "TEASER POSITIONING SUMMARY" (core positioning, primary investor au
     id: "pitch_deck",
     label: "Pitch Deck (12 Slides)",
     category: "presentation",
+    tier: "marketing",
     outputFormat: "pptx",
     systemPrompt:
       `You are an elite private markets pitch deck strategist and institutional fundraising consultant. Create a highly visual, institutional-quality 12-slide fundraising pitch deck designed to attract HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
@@ -316,6 +545,7 @@ Start with a "PITCH DECK POSITIONING SUMMARY" (core positioning, primary investo
     id: "event_presentation_educational",
     label: "Event Presentation — Educational (11–14 Slides)",
     category: "presentation",
+    tier: "marketing",
     outputFormat: "pptx",
     systemPrompt:
       `Act as a top-tier management consultant, institutional financial copywriter, and executive presentation strategist. Create a polished, defensible, educational 11-to-14-slide presentation using only the provided fund knowledge base.
@@ -352,6 +582,7 @@ Start with a slide-by-slide outline, then the full editable slide content. Keep 
     id: "event_presentation_solicitation",
     label: "Event Presentation — Solicitation (11–14 Slides)",
     category: "presentation",
+    tier: "marketing",
     outputFormat: "pptx",
     systemPrompt:
       `Act as a top-tier management consultant, institutional fundraising strategist, and executive presentation designer. Create a highly polished, solicitation-oriented investor presentation (11 to 14 slides, optimized for a 15-25 minute live presentation) for EO/YPO members, founders, accredited investors, family offices, and institutional allocators.
@@ -392,6 +623,7 @@ Start with a slide-by-slide outline, then the full editable slide content.` +
     id: "executive_briefing_outreach",
     label: "Executive Briefing — Investor Outreach & Conversion",
     category: "briefing",
+    tier: "marketing",
     outputFormat: "docx",
     systemPrompt:
       `You are an institutional investor-relations and capital-raising strategist. Draft an internal Executive Briefing on optimizing investor outreach and conversion for this fund -- a strategy document for the fund's own team, not investor-facing copy.
@@ -430,4 +662,19 @@ NOTE: this asset's prompt was drafted from a structural outline rather than the 
 
 export function getAssetTemplate(id: string) {
   return ASSET_TEMPLATES.find((a) => a.id === id);
+}
+
+export function isRequiredFoundational(assetId: string): boolean {
+  return (REQUIRED_FOUNDATIONAL_ASSET_IDS as readonly string[]).includes(assetId);
+}
+
+// True only if every REQUIRED foundational asset (ICP, Brand Identity,
+// Brand Guidelines, Messaging Framework) is approved. Case Studies and DDQ
+// go through the same review flow but don't gate marketing-tier generation.
+export function allFoundationalApproved(
+  assets: { asset_key: string; approval_status: string }[]
+): boolean {
+  return REQUIRED_FOUNDATIONAL_ASSET_IDS.every((id) =>
+    assets.some((a) => a.asset_key === id && a.approval_status === "approved")
+  );
 }

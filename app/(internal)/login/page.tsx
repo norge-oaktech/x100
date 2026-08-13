@@ -24,43 +24,82 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-screen items-center justify-center p-8">
-      <div className="w-full max-w-sm space-y-6">
-        <div>
-          <h1 className="text-lg font-medium">Team login</h1>
-          <p className="mt-1 text-sm text-slate-600">
+      <div className="w-full max-w-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div
+            className="flex h-8 w-8 items-center justify-center rounded-lg text-sm font-bold text-white"
+            style={{
+              background: "linear-gradient(135deg,#5B7FFF 0%,#A78BFA 100%)",
+              fontFamily: "var(--font-display)",
+            }}
+          >
+            x
+          </div>
+          <div>
+            <div
+              className="text-sm font-semibold"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              x100
+            </div>
+            <div
+              className="text-[9.5px] uppercase tracking-wide"
+              style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}
+            >
+              Team access
+            </div>
+          </div>
+        </div>
+
+        <div className="card">
+          <p className="page-title" style={{ fontSize: 16, marginBottom: 4 }}>
+            Sign in
+          </p>
+          <p className="tm mb16" style={{ fontSize: 12.5 }}>
             Internal access only. Enter your work email — we&apos;ll send a
             sign-in link.
           </p>
-        </div>
 
-        {status === "sent" ? (
-          <p className="rounded-md bg-green-50 p-3 text-sm text-green-800">
-            Check your inbox for a sign-in link.
-          </p>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@company.com"
-              className="w-full rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={status === "sending"}
-              className="w-full rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
+          {status === "sent" ? (
+            <div
+              className="card-sm"
+              style={{
+                background: "rgba(52,211,153,0.06)",
+                borderColor: "rgba(52,211,153,0.25)",
+                color: "var(--success)",
+                fontSize: 12.5,
+              }}
             >
-              {status === "sending" ? "Sending…" : "Send sign-in link"}
-            </button>
-            {status === "error" && (
-              <p className="text-sm text-red-600">
-                Something went wrong. Try again.
-              </p>
-            )}
-          </form>
-        )}
+              Check your inbox for a sign-in link.
+            </div>
+          ) : (
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="field" style={{ marginBottom: 12 }}>
+                <input
+                  type="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="field-input"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={status === "sending"}
+                className="btn btn-primary"
+                style={{ width: "100%", justifyContent: "center" }}
+              >
+                {status === "sending" ? "Sending…" : "Send sign-in link"}
+              </button>
+              {status === "error" && (
+                <p style={{ color: "var(--danger)", fontSize: 12.5 }}>
+                  Something went wrong. Try again.
+                </p>
+              )}
+            </form>
+          )}
+        </div>
       </div>
     </main>
   );

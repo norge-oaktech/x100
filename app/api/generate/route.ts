@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAssetTemplate } from "@/config/assets";
+import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
+import type { GeneratedAsset } from "@/types/database";
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -43,6 +44,27 @@ export async function POST(request: Request) {
     );
   }
 
+  // Marketing-tier assets are locked until every foundational document is
+  // approved. This check happens server-side, not just in the UI, so it
+  // can't be bypassed by calling this route directly.
+  if (template.tier === "marketing") {
+    const { data: existingAssets } = await supabase
+      .from("generated_assets")
+      .select("asset_key, approval_status")
+      .eq("project_id", projectId)
+      .returns<Pick<GeneratedAsset, "asset_key" | "approval_status">[]>();
+
+    if (!allFoundationalApproved(existingAssets ?? [])) {
+      return NextResponse.json(
+        {
+          error:
+            "This asset is locked until all 6 foundational documents (ICP, Brand Identity, Brand Guidelines, Messaging Framework, Case Studies, DDQ) are approved.",
+        },
+        { status: 403 }
+      );
+    }
+  }
+
   const userPrompt = template.buildUserPrompt(onboarding.answers);
 
   const { data: assetRow, error: insertError } = await supabase
@@ -52,6 +74,9 @@ export async function POST(request: Request) {
       asset_key: template.id,
       status: "generating",
       prompt_snapshot: userPrompt,
+      // foundational assets start their approval lifecycle as "pending"
+      // once content lands; marketing assets never require approval.
+      approval_status: template.tier === "foundational" ? "pending" : "not_required",
     })
     .select("id")
     .single();

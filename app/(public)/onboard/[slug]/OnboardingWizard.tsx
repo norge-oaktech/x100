@@ -242,7 +242,7 @@ export function OnboardingWizard({
             disabled={isPending}
             className="rounded-md bg-slate-900 px-5 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
           >
-            {isPending ? "Submitting…" : "Submit"}
+            {isPending ? "Submitting… this may take a minute" : "Submit"}
           </button>
         ) : (
           <button

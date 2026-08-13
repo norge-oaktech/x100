@@ -49,4 +49,7 @@ export interface GeneratedAsset {
   error: string | null;
   generated_at: string | null;
   created_at: string;
+  approval_status: "not_required" | "pending" | "approved" | "rejected";
+  approved_by: string | null;
+  approved_at: string | null;
 }

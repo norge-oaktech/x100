@@ -6,19 +6,19 @@ import type { Project, Client } from "@/types/database";
 const STATUS_LABEL: Record<string, string> = {
   awaiting_onboarding: "Awaiting onboarding",
   onboarding_in_progress: "Onboarding in progress",
-  onboarding_complete: "Onboarding complete — ready for generation",
+  onboarding_complete: "Ready for generation",
   generating: "Generating",
   ready: "Ready",
   archived: "Archived",
 };
 
-const STATUS_COLOR: Record<string, string> = {
-  awaiting_onboarding: "bg-slate-100 text-slate-700",
-  onboarding_in_progress: "bg-amber-100 text-amber-800",
-  onboarding_complete: "bg-blue-100 text-blue-800",
-  generating: "bg-purple-100 text-purple-800",
-  ready: "bg-green-100 text-green-800",
-  archived: "bg-slate-100 text-slate-500",
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  awaiting_onboarding: "b-draft",
+  onboarding_in_progress: "b-onboarding",
+  onboarding_complete: "b-onboard",
+  generating: "b-generating",
+  ready: "b-active",
+  archived: "b-draft",
 };
 
 export default async function DashboardPage() {
@@ -30,50 +30,96 @@ export default async function DashboardPage() {
     .order("created_at", { ascending: false })
     .returns<(Project & { clients: Pick<Client, "name"> | null })[]>();
 
+  const activeCount =
+    projects?.filter((p) => p.status !== "archived").length ?? 0;
+  const readyForGenCount =
+    projects?.filter((p) => p.status === "onboarding_complete").length ?? 0;
+
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-lg font-medium">Projects</h1>
+    <main className="scroll mx-auto max-w-4xl">
+      <div className="fb">
+        <div>
+          <div className="page-title">Projects</div>
+          <div className="page-sub" style={{ marginBottom: 0 }}>
+            {new Date().toLocaleDateString("en-US", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </div>
+        </div>
         <form action="/auth/signout" method="post">
-          <button className="text-xs text-slate-500 hover:text-slate-800">
-            Sign out
-          </button>
+          <button className="btn btn-ghost btn-sm">Sign out</button>
         </form>
       </div>
 
-      <div className="mt-6">
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: 14,
+          margin: "24px 0",
+        }}
+      >
+        <div className="stat-card">
+          <div className="stat-lbl">Active projects</div>
+          <div className="stat-val">{activeCount}</div>
+        </div>
+        <div className="stat-card">
+          <div className="stat-lbl">Ready for generation</div>
+          <div className="stat-val">{readyForGenCount}</div>
+        </div>
+      </div>
+
+      <div className="mb20">
+        <div className="section-label">New project</div>
         <NewProjectForm />
       </div>
 
-      <div className="mt-8 divide-y divide-slate-200 rounded-lg border border-slate-200 bg-white">
+      <div className="section-label">All projects</div>
+      <div className="table-wrap">
         {!projects || projects.length === 0 ? (
-          <p className="p-5 text-sm text-slate-500">
+          <div className="tm" style={{ padding: 20, fontSize: 13 }}>
             No projects yet — create one above.
-          </p>
+          </div>
         ) : (
-          projects.map((p) => (
-            <Link
-              key={p.id}
-              href={`/dashboard/${p.id}`}
-              className="flex items-center justify-between gap-4 p-4 hover:bg-slate-50"
-            >
-              <div>
-                <p className="text-sm font-medium">
-                  {p.clients?.name ?? "Unnamed client"}
-                </p>
-                <p className="text-xs text-slate-500">
-                  Created {new Date(p.created_at).toLocaleDateString()}
-                </p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-medium ${
-                  STATUS_COLOR[p.status]
-                }`}
-              >
-                {STATUS_LABEL[p.status]}
-              </span>
-            </Link>
-          ))
+          <table>
+            <thead>
+              <tr>
+                <th>Client</th>
+                <th>Created</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {projects.map((p) => (
+                <tr key={p.id}>
+                  <td>
+                    <Link
+                      href={`/dashboard/${p.id}`}
+                      className="tc"
+                      style={{ display: "block" }}
+                    >
+                      {p.clients?.name ?? "Unnamed client"}
+                    </Link>
+                  </td>
+                  <td className="tm">
+                    {new Date(p.created_at).toLocaleDateString()}
+                  </td>
+                  <td>
+                    <span
+                      className={`badge ${
+                        STATUS_BADGE_CLASS[p.status] ?? "b-draft"
+                      }`}
+                    >
+                      {STATUS_LABEL[p.status] ?? p.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         )}
       </div>
     </main>

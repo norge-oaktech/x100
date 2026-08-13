@@ -30,39 +30,52 @@ export function NewProjectForm() {
   }
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5">
-      <h2 className="text-sm font-medium">New project</h2>
-      <form onSubmit={handleSubmit} className="mt-3 flex gap-2">
+    <div className="card-sm">
+      <form onSubmit={handleSubmit} className="field-row" style={{ display: "flex", gap: 8 }}>
         <input
           name="clientName"
           value={clientName}
           onChange={(e) => setClientName(e.target.value)}
           placeholder="Client / fund name"
           required
-          className="flex-1 rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+          className="field-input"
+          style={{ flex: 1 }}
         />
-        <button
-          type="submit"
-          disabled={isPending}
-          className="rounded-md bg-slate-900 px-4 py-2 text-sm text-white hover:bg-slate-700 disabled:opacity-50"
-        >
+        <button type="submit" disabled={isPending} className="btn btn-primary btn-sm">
           {isPending ? "Creating…" : "Create"}
         </button>
       </form>
 
-      {error && <p className="mt-2 text-sm text-red-600">{error}</p>}
+      {error && (
+        <p style={{ marginTop: 8, fontSize: 12.5, color: "var(--danger)" }}>{error}</p>
+      )}
 
       {generatedLink && (
-        <div className="mt-3 rounded-md bg-slate-50 p-3">
-          <p className="text-xs text-slate-500">
+        <div
+          className="card-sm"
+          style={{ marginTop: 10, background: "var(--bg-surface-raised)" }}
+        >
+          <p style={{ fontSize: 11, color: "var(--text-faint)" }}>
             Onboarding link — send this to the client:
           </p>
-          <div className="mt-1 flex items-center gap-2">
-            <code className="flex-1 truncate text-xs">{generatedLink}</code>
+          <div className="fac gap8" style={{ marginTop: 4 }}>
+            <code
+              className="tm"
+              style={{
+                flex: 1,
+                fontSize: 11.5,
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                whiteSpace: "nowrap",
+                fontFamily: "var(--font-mono)",
+              }}
+            >
+              {generatedLink}
+            </code>
             <button
               type="button"
               onClick={() => navigator.clipboard.writeText(generatedLink)}
-              className="shrink-0 rounded border border-slate-300 px-2 py-1 text-xs hover:bg-white"
+              className="btn btn-ghost btn-xs"
             >
               Copy
             </button>

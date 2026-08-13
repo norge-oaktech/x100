@@ -100,6 +100,45 @@ Visit `http://localhost:3000/login` to sign in as your team, or
 `http://localhost:3000/dashboard` to create your first test project and get
 an onboarding link.
 
+## Approval workflow (foundational documents)
+
+Six assets are now **foundational** — generated first, require approval, and gate every other asset in the project from being generated at all until all six are approved:
+
+- ICP Generation (Ideal Customer Profile)
+- Brand Identity
+- Brand Guidelines
+- Messaging Framework
+- Case Studies
+- DDQ Drafting (Due Diligence Questionnaire)
+
+Behavior:
+- Foundational assets can be generated any time onboarding has *any* saved answers — full completion is **not** required. This lets staff kick these off early from an in-progress project.
+- The other 12 ("marketing") assets are locked — the Generate button is disabled and the API route itself rejects the request — until (a) onboarding is fully complete, and (b) all 6 foundational assets have `approval_status = 'approved'`. This is enforced server-side in `app/api/generate/route.ts`, not just hidden in the UI.
+- Approvers can **edit the generated content directly** before approving (an "Edit" toggle on each foundational asset's card) — the edited text becomes the new `content`, which is what downstream context/exports will use.
+- **Anyone signed in can approve or reject for now.** Restricting approval to specific team members by email is a placeholder for later — the one place that check needs to be added is called out with a comment in `app/api/assets/review/route.ts`.
+- None of the 6 foundational documents had source prompt materials — their system prompts were drafted from standard industry practice (same caveat as Executive Briefing). Review these more carefully than the ones built from your actual prompt docs, especially **DDQ Drafting**, which explicitly should not be sent to any investor without real legal/compliance review regardless of how complete it looks.
+
+**Migration note:** run `supabase/migrations/0002_approval_workflow.sql` in addition to `0001_init.sql` if you haven't already — it adds the `approval_status`, `approved_by`, and `approved_at` columns to `generated_assets`.
+
+## Approval workflow (foundational documents) — updated
+
+Six assets are **foundational** — generated together as a batch, all go through review:
+
+- ICP Generation, Brand Identity, Brand Guidelines, Messaging Framework — **required**. All four must be approved before any marketing asset can be generated.
+- Case Studies, DDQ Drafting — **optional**. Still generated, still show approve/reject, but don't block anything downstream.
+
+**Trigger points (fully automatic, no button click required):**
+1. **Client submits onboarding** (all 14 sections complete) → all 6 foundational documents generate automatically in the background as part of that submission. The client's Submit button shows "this may take a minute" while it runs.
+2. **Staff early-trigger** — on any in-progress project (even with only a few sections filled in), the project detail page has a **"Generate all foundational"** button that runs the same batch on whatever answers exist so far. Individual per-document Generate/Regenerate buttons still work too, for redoing just one.
+
+**Approver restriction** — set via the `APPROVER_EMAILS` environment variable in Vercel (comma-separated emails). Leave it unset and anyone signed in can approve, same as before. This is a pure env-var change — **no code change or file from me needed** to add/remove approvers, just:
+1. Vercel → Settings → Environment Variables → add `APPROVER_EMAILS` = `you@company.com,jeff@company.com,pm2@company.com`
+2. Redeploy (env var changes need a redeploy to take effect, same as any other env var here)
+
+Editing generated content before approval is intentionally **not** restricted to approvers — any signed-in team member can use the Edit button; only Approve/Reject are gated by the allowlist.
+
+**Migration note:** run `supabase/migrations/0002_approval_workflow.sql` if you haven't already — no new migration was needed for this round, the existing approval columns cover everything here.
+
 ## What I need from you to move to Phase 3
 
 Once you've tested the Cold Outreach Email generation and are happy with

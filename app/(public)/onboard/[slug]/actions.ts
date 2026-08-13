@@ -2,6 +2,7 @@
 
 import { createAdminClient } from "@/lib/supabase/admin";
 import { ONBOARDING_SECTIONS, getSectionById } from "@/config/onboardingSchema";
+import { generateFoundationalBatch } from "@/lib/assets/generateFoundational";
 
 const ELIGIBLE_STATUSES = [
   "awaiting_onboarding",
@@ -90,7 +91,7 @@ export async function completeOnboardingAction(slug: string) {
 
   const { data: response } = await supabase
     .from("onboarding_responses")
-    .select("completed_sections")
+    .select("answers, completed_sections")
     .eq("project_id", project.id)
     .maybeSingle();
 
@@ -107,13 +108,34 @@ export async function completeOnboardingAction(slug: string) {
     .update({ submitted_at: new Date().toISOString() })
     .eq("project_id", project.id);
 
-  await supabase
+  // Guarded update: only succeeds if the project is still in an onboarding
+  // status. This is what prevents a resubmit (or a duplicate request) from
+  // triggering the foundational batch a second time -- if the row was
+  // already flipped to onboarding_complete by an earlier call, this update
+  // affects zero rows and we skip generation below.
+  const { data: updatedProject } = await supabase
     .from("projects")
     .update({
       status: "onboarding_complete",
       updated_at: new Date().toISOString(),
     })
-    .eq("id", project.id);
+    .eq("id", project.id)
+    .in("status", ["awaiting_onboarding", "onboarding_in_progress"])
+    .select("id")
+    .maybeSingle();
+
+  if (updatedProject && response?.answers) {
+    // Auto-generate the foundational documents now that onboarding is
+    // complete. Awaited deliberately (not fire-and-forget) so a serverless
+    // function teardown can't kill it mid-generation -- the client's
+    // "Submit" button shows a loading state for the duration.
+    await generateFoundationalBatch(supabase, project.id, response.answers);
+
+    await supabase
+      .from("projects")
+      .update({ status: "generating", updated_at: new Date().toISOString() })
+      .eq("id", project.id);
+  }
 
   return { success: true };
 }

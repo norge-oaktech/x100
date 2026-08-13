@@ -9,6 +9,15 @@ import type {
 } from "@/types/database";
 import { GenerateAssetPanel } from "./GenerateAssetPanel";
 
+const STATUS_BADGE_CLASS: Record<string, string> = {
+  awaiting_onboarding: "b-draft",
+  onboarding_in_progress: "b-onboarding",
+  onboarding_complete: "b-onboard",
+  generating: "b-generating",
+  ready: "b-active",
+  archived: "b-draft",
+};
+
 export default async function ProjectDetailPage({
   params,
 }: {
@@ -34,6 +43,7 @@ export default async function ProjectDetailPage({
     .from("generated_assets")
     .select("*")
     .eq("project_id", project.id)
+    .order("created_at", { ascending: true })
     .returns<GeneratedAsset[]>();
 
   const onboardingUrl = `${
@@ -41,88 +51,118 @@ export default async function ProjectDetailPage({
   }/onboard/${project.slug}`;
 
   const completedCount = response?.completed_sections?.length ?? 0;
-  const onboardingComplete = project.status !== "awaiting_onboarding" &&
+  const onboardingComplete =
+    project.status !== "awaiting_onboarding" &&
     project.status !== "onboarding_in_progress";
+  const progressPct = Math.round(
+    (completedCount / ONBOARDING_SECTIONS.length) * 100
+  );
 
   return (
-    <main className="mx-auto max-w-3xl p-8">
-      <a href="/dashboard" className="text-xs text-slate-500 hover:underline">
-        ← Projects
-      </a>
+    <main className="scroll mx-auto max-w-3xl">
+      <div className="breadcrumb mb8">
+        <a href="/dashboard" className="crumb-link">
+          Projects
+        </a>
+        <span className="sep">/</span>
+        <span className="current">{project.clients?.name ?? "Unnamed client"}</span>
+      </div>
 
-      <div className="mt-2 flex items-center justify-between">
-        <h1 className="text-lg font-medium">
+      <div className="fb mb16">
+        <div className="page-title" style={{ marginBottom: 0 }}>
           {project.clients?.name ?? "Unnamed client"}
-        </h1>
-        <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700">
+        </div>
+        <span
+          className={`badge ${STATUS_BADGE_CLASS[project.status] ?? "b-draft"}`}
+        >
           {project.status.replace(/_/g, " ")}
         </span>
       </div>
 
-      <div className="mt-4 rounded-lg border border-slate-200 bg-white p-4">
-        <p className="text-xs text-slate-500">Onboarding link</p>
-        <code className="text-xs">{onboardingUrl}</code>
-        <p className="mt-3 text-xs text-slate-500">
-          Progress: {completedCount} / {ONBOARDING_SECTIONS.length} sections
-          completed
-          {response?.submitted_at &&
-            ` — submitted ${new Date(
-              response.submitted_at
-            ).toLocaleDateString()}`}
-        </p>
+      <div className="card mb20">
+        <div className="section-label">Onboarding link</div>
+        <code
+          className="tm"
+          style={{ fontSize: 12, fontFamily: "var(--font-mono)" }}
+        >
+          {onboardingUrl}
+        </code>
+        <div style={{ marginTop: 12 }}>
+          <div className="progress-row">
+            <div className="progress-bar">
+              <div className="progress-fill" style={{ width: `${progressPct}%` }} />
+            </div>
+            <span className="progress-pct">{progressPct}%</span>
+          </div>
+          <p className="tf" style={{ fontSize: 11, marginTop: 6 }}>
+            {completedCount} / {ONBOARDING_SECTIONS.length} sections completed
+            {response?.submitted_at &&
+              ` — submitted ${new Date(response.submitted_at).toLocaleDateString()}`}
+          </p>
+        </div>
       </div>
 
       <GenerateAssetPanel
         projectId={project.id}
         onboardingComplete={onboardingComplete}
+        hasOnboardingResponses={!!response}
         initialAssets={generatedAssets ?? []}
       />
 
       {!response ? (
-        <p className="mt-8 text-sm text-slate-500">
+        <p className="tm mt16" style={{ fontSize: 13 }}>
           Client hasn&apos;t started onboarding yet.
         </p>
       ) : (
-        <div className="mt-8 space-y-6">
-          {ONBOARDING_SECTIONS.map((section) => {
-            const isDone = response.completed_sections?.includes(section.id);
-            return (
-              <div
-                key={section.id}
-                className="rounded-lg border border-slate-200 bg-white p-5"
-              >
-                <div className="flex items-center justify-between">
-                  <h2 className="text-sm font-medium">{section.title}</h2>
-                  <span
-                    className={`text-xs ${
-                      isDone ? "text-green-700" : "text-slate-400"
-                    }`}
-                  >
-                    {isDone ? "Complete" : "Not started"}
-                  </span>
+        <div style={{ marginTop: 32 }}>
+          <div className="section-label">Onboarding answers</div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {ONBOARDING_SECTIONS.map((section) => {
+              const isDone = response.completed_sections?.includes(section.id);
+              return (
+                <div key={section.id} className="card-sm">
+                  <div className="fb">
+                    <span className="fw6" style={{ fontSize: 13 }}>
+                      {section.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        color: isDone ? "var(--success)" : "var(--text-faint)",
+                      }}
+                    >
+                      {isDone ? "Complete" : "Not started"}
+                    </span>
+                  </div>
+                  {isDone && (
+                    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                      {section.fields.map((field) => {
+                        const value = response.answers?.[field.id];
+                        if (!value || (Array.isArray(value) && value.length === 0))
+                          return null;
+                        return (
+                          <div key={field.id}>
+                            <div
+                              style={{
+                                fontSize: 11,
+                                color: "var(--text-faint)",
+                                marginBottom: 1,
+                              }}
+                            >
+                              {field.label}
+                            </div>
+                            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                              {Array.isArray(value) ? value.join(", ") : value}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
-                {isDone && (
-                  <dl className="mt-3 space-y-3">
-                    {section.fields.map((field) => {
-                      const value = response.answers?.[field.id];
-                      if (!value || (Array.isArray(value) && value.length === 0))
-                        return null;
-                      return (
-                        <div key={field.id}>
-                          <dt className="text-xs font-medium text-slate-500">
-                            {field.label}
-                          </dt>
-                          <dd className="text-sm text-slate-800">
-                            {Array.isArray(value) ? value.join(", ") : value}
-                          </dd>
-                        </div>
-                      );
-                    })}
-                  </dl>
-                )}
-              </div>
-            );
-          })}
+              );
+            })}
+          </div>
         </div>
       )}
     </main>
