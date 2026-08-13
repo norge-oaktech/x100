@@ -180,7 +180,7 @@ NOTE: this asset's prompt was drafted from standard brand-guidelines practice, n
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Brand Guidelines document described above.", a),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
   {
     id: "messaging_framework",
@@ -208,7 +208,7 @@ NOTE: this asset's prompt was drafted from standard messaging-strategy practice,
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Messaging Framework document described above.", a),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
   {
     id: "case_studies",
@@ -266,7 +266,7 @@ NOTE: this asset's prompt was drafted from standard institutional DDQ structure,
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the first-pass DDQ response described above.", a),
-    maxTokens: 4000,
+    maxTokens: 9000,
   },
 
   // =====================================================================
@@ -466,7 +466,7 @@ Return, in order: (1) the full landing page copy section by section (Section Nam
         "Create the complete investor-facing landing page copy described above.",
         a
       ),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
 
   {
@@ -499,7 +499,7 @@ Start with a "TEASER POSITIONING SUMMARY" (core positioning, primary investor au
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Create the complete investor teaser described above.", a),
-    maxTokens: 3000,
+    maxTokens: 5000,
   },
 
   {
@@ -538,7 +538,7 @@ Start with a "PITCH DECK POSITIONING SUMMARY" (core positioning, primary investo
         "Create the complete 12-slide pitch deck storyline and slide-by-slide breakdown described above.",
         a
       ),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
 
   {
@@ -576,7 +576,7 @@ Start with a slide-by-slide outline, then the full editable slide content. Keep 
         "Create the complete educational event presentation described above.",
         a
       ),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
   {
     id: "event_presentation_solicitation",
@@ -616,7 +616,7 @@ Start with a slide-by-slide outline, then the full editable slide content.` +
         "Create the complete solicitation event presentation described above.",
         a
       ),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
 
   {
@@ -656,7 +656,7 @@ NOTE: this asset's prompt was drafted from a structural outline rather than the 
         "Draft the complete Executive Briefing described above.",
         a
       ),
-    maxTokens: 4000,
+    maxTokens: 6000,
   },
 ];
 
