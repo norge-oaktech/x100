@@ -59,6 +59,14 @@ function AssetCard({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(existing?.content ?? "");
+  const [copied, setCopied] = useState(false);
+
+  function handleCopy() {
+    if (!existing?.content) return;
+    navigator.clipboard.writeText(existing.content);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  }
 
   const status = isGenerating ? "generating" : existing?.status;
   const showApprovalControls =
@@ -172,42 +180,50 @@ function AssetCard({
         </div>
       )}
 
-      {template.tier === "foundational" && existing?.status === "complete" && (
+      {existing?.status === "complete" && existing.content && (
         <div className="receipt-actions">
-          {isEditing ? (
+          <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
+            {copied ? "Copied!" : "Copy"}
+          </button>
+
+          {template.tier === "foundational" && (
             <>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  onSaveEdit?.(draft);
-                  setIsEditing(false);
-                }}
-              >
-                Save edits
-              </button>
-              <button
-                className="btn btn-ghost btn-sm"
-                onClick={() => {
-                  setDraft(existing.content ?? "");
-                  setIsEditing(false);
-                }}
-              >
-                Cancel
-              </button>
-            </>
-          ) : (
-            <button className="btn btn-ghost btn-sm" onClick={() => setIsEditing(true)}>
-              Edit
-            </button>
-          )}
-          {showApprovalControls && (
-            <>
-              <button className="btn btn-success btn-sm" onClick={onApprove}>
-                Approve
-              </button>
-              <button className="btn btn-danger btn-sm" onClick={onReject}>
-                Reject
-              </button>
+              {isEditing ? (
+                <>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      onSaveEdit?.(draft);
+                      setIsEditing(false);
+                    }}
+                  >
+                    Save edits
+                  </button>
+                  <button
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => {
+                      setDraft(existing.content ?? "");
+                      setIsEditing(false);
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button className="btn btn-ghost btn-sm" onClick={() => setIsEditing(true)}>
+                  Edit
+                </button>
+              )}
+              {showApprovalControls && (
+                <>
+                  <button className="btn btn-success btn-sm" onClick={onApprove}>
+                    Approve
+                  </button>
+                  <button className="btn btn-danger btn-sm" onClick={onReject}>
+                    Reject
+                  </button>
+                </>
+              )}
             </>
           )}
         </div>
@@ -289,6 +305,14 @@ export function GenerateAssetPanel({
     callApi({ assetId, action, content }, "/api/assets/review");
   }
 
+  const locked = !onboardingComplete || !foundationalApproved;
+  const [showLockedDetails, setShowLockedDetails] = useState(false);
+
+  const requiredApprovedCount = foundationalTemplates.filter(
+    (t) => isRequiredFoundational(t.id) && assetsByKey.get(t.id)?.approval_status === "approved"
+  ).length;
+  const requiredTotal = foundationalTemplates.filter((t) => isRequiredFoundational(t.id)).length;
+
   return (
     <div className="mb20">
       {error && (
@@ -305,80 +329,133 @@ export function GenerateAssetPanel({
         </div>
       )}
 
-      <div className="fb" style={{ marginBottom: 10 }}>
-        <div className="section-label" style={{ marginBottom: 0 }}>
-          Foundational Documents — require approval
+      {/* ── Step 1: Foundational Documents ───────────────────────── */}
+      <div className="section-block">
+        <div className="section-block-header">
+          <span className="step-num">1</span>
+          <div style={{ flex: 1 }}>
+            <div className="section-block-title">Foundational Documents</div>
+            <div className="section-block-sub">
+              Require approval · {requiredApprovedCount}/{requiredTotal} required approved
+            </div>
+          </div>
+          <button
+            onClick={handleGenerateAllFoundational}
+            disabled={!hasOnboardingResponses || isBatchPending || isPending}
+            title={
+              !hasOnboardingResponses
+                ? "Client hasn't started onboarding yet"
+                : undefined
+            }
+            className="btn btn-primary btn-xs"
+          >
+            {isBatchPending
+              ? "Generating all…"
+              : anyFoundationalGenerated
+              ? "⚡ Regenerate all"
+              : "⚡ Generate all foundational"}
+          </button>
         </div>
-        <button
-          onClick={handleGenerateAllFoundational}
-          disabled={!hasOnboardingResponses || isBatchPending || isPending}
-          title={
-            !hasOnboardingResponses
-              ? "Client hasn't started onboarding yet"
-              : undefined
-          }
-          className="btn btn-primary btn-xs"
-        >
-          {isBatchPending
-            ? "Generating all…"
-            : anyFoundationalGenerated
-            ? "⚡ Regenerate all"
-            : "⚡ Generate all foundational"}
-        </button>
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14, marginBottom: 24 }}>
-        {foundationalTemplates.map((template) => {
-          const existing = assetsByKey.get(template.id);
-          const isGeneratingThis =
-            (isPending && activeKey === template.id) || isBatchPending;
-          return (
-            <AssetCard
-              key={template.id}
-              template={template}
-              existing={existing}
-              isGenerating={isGeneratingThis}
-              disabled={!hasOnboardingResponses}
-              disabledReason="Client hasn't started onboarding yet — nothing to generate from."
-              onGenerate={() => handleGenerate(template.id)}
-              onApprove={() => existing && handleReview(existing.id, "approve")}
-              onReject={() => existing && handleReview(existing.id, "reject")}
-              onSaveEdit={(content) => existing && handleReview(existing.id, "save_edit", content)}
-            />
-          );
-        })}
+        <div className="section-block-body">
+          <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+            {foundationalTemplates.map((template) => {
+              const existing = assetsByKey.get(template.id);
+              const isGeneratingThis =
+                (isPending && activeKey === template.id) || isBatchPending;
+              return (
+                <AssetCard
+                  key={template.id}
+                  template={template}
+                  existing={existing}
+                  isGenerating={isGeneratingThis}
+                  disabled={!hasOnboardingResponses}
+                  disabledReason="Client hasn't started onboarding yet — nothing to generate from."
+                  onGenerate={() => handleGenerate(template.id)}
+                  onApprove={() => existing && handleReview(existing.id, "approve")}
+                  onReject={() => existing && handleReview(existing.id, "reject")}
+                  onSaveEdit={(content) => existing && handleReview(existing.id, "save_edit", content)}
+                />
+              );
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="fb" style={{ marginBottom: 10 }}>
-        <div className="section-label" style={{ marginBottom: 0 }}>
-          Marketing Assets
+      {/* ── Step 2: Marketing Assets ─────────────────────────────── */}
+      <div className="section-block">
+        <div className={`section-block-header${locked ? " locked" : ""}`}>
+          <span className={`step-num${locked ? " dimmed" : ""}`}>2</span>
+          <div style={{ flex: 1 }}>
+            <div className="section-block-title">Marketing Assets</div>
+            <div className="section-block-sub">
+              {locked
+                ? !onboardingComplete
+                  ? "Locked — onboarding not yet complete"
+                  : "Locked — waiting on required foundational approvals"
+                : `${marketingTemplates.length} assets unlocked`}
+            </div>
+          </div>
+          {locked && <span className="badge b-draft">Locked</span>}
         </div>
-        {!foundationalApproved && (
-          <span className="tf" style={{ fontSize: 11.5 }}>
-            Locked until the 4 required foundational documents are approved
-          </span>
+
+        {locked ? (
+          <div className="section-block-body">
+            <div className="locked-summary">
+              <span className="locked-summary-text">
+                {marketingTemplates.length} marketing assets (website, landing page,
+                decks, and more) will unlock once all {requiredTotal} required
+                foundational documents above are approved.
+              </span>
+              <button
+                className="btn btn-ghost btn-xs"
+                onClick={() => setShowLockedDetails((v) => !v)}
+              >
+                {showLockedDetails ? "Hide list" : "Show list"}
+              </button>
+            </div>
+            {showLockedDetails && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 14 }}>
+                {marketingTemplates.map((template) => {
+                  const existing = assetsByKey.get(template.id);
+                  return (
+                    <AssetCard
+                      key={template.id}
+                      template={template}
+                      existing={existing}
+                      isGenerating={false}
+                      disabled={true}
+                      disabledReason={
+                        !onboardingComplete
+                          ? "Onboarding must be complete before this can be generated."
+                          : "Locked until the required foundational documents are approved."
+                      }
+                      onGenerate={() => handleGenerate(template.id)}
+                    />
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="section-block-body">
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {marketingTemplates.map((template) => {
+                const existing = assetsByKey.get(template.id);
+                const isGeneratingThis = isPending && activeKey === template.id;
+                return (
+                  <AssetCard
+                    key={template.id}
+                    template={template}
+                    existing={existing}
+                    isGenerating={isGeneratingThis}
+                    disabled={false}
+                    onGenerate={() => handleGenerate(template.id)}
+                  />
+                );
+              })}
+            </div>
+          </div>
         )}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {marketingTemplates.map((template) => {
-          const existing = assetsByKey.get(template.id);
-          const isGeneratingThis = isPending && activeKey === template.id;
-          const locked = !onboardingComplete || !foundationalApproved;
-          return (
-            <AssetCard
-              key={template.id}
-              template={template}
-              existing={existing}
-              isGenerating={isGeneratingThis}
-              disabled={locked}
-              disabledReason={
-                !onboardingComplete
-                  ? "Onboarding must be complete before this can be generated."
-                  : "Locked until the 4 required foundational documents are approved."
-              }
-              onGenerate={() => handleGenerate(template.id)}
-            />
-          );
-        })}
       </div>
     </div>
   );
