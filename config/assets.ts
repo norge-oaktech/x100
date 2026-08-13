@@ -124,7 +124,7 @@ NOTE: this asset's prompt was drafted from standard IR/fundraising practice, not
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Ideal Customer Profile document described above.", a),
-    maxTokens: 2000,
+    maxTokens: 4000,
   },
   {
     id: "brand_identity",
@@ -152,7 +152,7 @@ NOTE: this asset's prompt was drafted from standard brand-strategy practice, not
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Brand Identity document described above.", a),
-    maxTokens: 2000,
+    maxTokens: 4000,
   },
   {
     id: "brand_guidelines",
@@ -180,7 +180,7 @@ NOTE: this asset's prompt was drafted from standard brand-guidelines practice, n
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Brand Guidelines document described above.", a),
-    maxTokens: 2000,
+    maxTokens: 4000,
   },
   {
     id: "messaging_framework",
@@ -208,7 +208,7 @@ NOTE: this asset's prompt was drafted from standard messaging-strategy practice,
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Messaging Framework document described above.", a),
-    maxTokens: 2000,
+    maxTokens: 4000,
   },
   {
     id: "case_studies",
@@ -234,7 +234,7 @@ NOTE: this asset's prompt was drafted from standard IR practice, not the client'
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the case study document described above.", a),
-    maxTokens: 2000,
+    maxTokens: 4000,
   },
   {
     id: "ddq_drafting",
