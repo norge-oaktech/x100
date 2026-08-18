@@ -53,3 +53,17 @@ export interface GeneratedAsset {
   approved_by: string | null;
   approved_at: string | null;
 }
+
+export interface AssetFile {
+  id: string;
+  generated_asset_id: string;
+  format: "docx" | "pdf" | "png";
+  storage_path: string;
+  created_at: string;
+}
+
+// Not a DB column -- attached at fetch time by the project detail page
+// (a short-lived Supabase Storage signed URL, generated server-side).
+export interface AssetFileWithUrl extends AssetFile {
+  url: string;
+}

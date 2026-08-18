@@ -9,7 +9,7 @@ import {
   MARKETING_PHASES,
   type AssetTemplate,
 } from "@/config/assets";
-import type { GeneratedAsset } from "@/types/database";
+import type { GeneratedAsset, AssetFileWithUrl } from "@/types/database";
 
 function statusBadgeClass(status?: string) {
   switch (status) {
@@ -37,6 +37,102 @@ function approvalBadgeClass(status?: string) {
   }
 }
 
+function ImageSubsection({
+  images,
+  isGenerating,
+  onGenerateImages,
+}: {
+  images: AssetFileWithUrl[];
+  isGenerating: boolean;
+  onGenerateImages: (customPrompt: string, count: number) => void;
+}) {
+  const [customPrompt, setCustomPrompt] = useState("");
+  const [count, setCount] = useState(1);
+
+  return (
+    <div
+      style={{
+        borderTop: "1px solid var(--border)",
+        padding: "14px 16px",
+        background: "var(--bg-surface)",
+      }}
+    >
+      <div style={{ fontSize: 11, color: "var(--text-faint)", marginBottom: 8 }}>
+        IMAGES
+      </div>
+
+      {images.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+            gap: 10,
+            marginBottom: 12,
+          }}
+        >
+          {images.map((img) => (
+            <div key={img.id}>
+              <img
+                src={img.url}
+                alt=""
+                style={{
+                  width: "100%",
+                  borderRadius: "var(--r-sm)",
+                  border: "1px solid var(--border-light)",
+                  display: "block",
+                }}
+              />
+              <a
+                href={img.url}
+                target="_blank"
+                rel="noreferrer"
+                className="btn btn-ghost btn-xs"
+                style={{ width: "100%", justifyContent: "center", marginTop: 6 }}
+              >
+                Download
+              </a>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <textarea
+        value={customPrompt}
+        onChange={(e) => setCustomPrompt(e.target.value)}
+        placeholder="Add custom direction for the image (optional) — leave blank to use the default brand-consistent prompt"
+        className="field-input"
+        style={{ width: "100%", minHeight: 60, marginBottom: 8 }}
+      />
+
+      <div className="fb">
+        <div className="fac gap8">
+          <span style={{ fontSize: 11, color: "var(--text-faint)" }}>Count:</span>
+          {[1, 2, 4].map((n) => (
+            <button
+              key={n}
+              onClick={() => setCount(n)}
+              className={`btn btn-xs ${count === n ? "btn-primary" : "btn-ghost"}`}
+            >
+              {n}
+            </button>
+          ))}
+        </div>
+        <button
+          className="btn btn-primary btn-xs"
+          disabled={isGenerating}
+          onClick={() => onGenerateImages(customPrompt, count)}
+        >
+          {isGenerating
+            ? "Generating…"
+            : images.length > 0
+            ? "⚡ Regenerate images"
+            : "⚡ Generate images"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function AssetCard({
   template,
   existing,
@@ -47,6 +143,9 @@ function AssetCard({
   onApprove,
   onReject,
   onSaveEdit,
+  images,
+  isImageGenerating,
+  onGenerateImages,
 }: {
   template: AssetTemplate;
   existing?: GeneratedAsset;
@@ -57,6 +156,9 @@ function AssetCard({
   onApprove?: () => void;
   onReject?: () => void;
   onSaveEdit?: (content: string) => void;
+  images?: AssetFileWithUrl[];
+  isImageGenerating?: boolean;
+  onGenerateImages?: (customPrompt: string, count: number) => void;
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(existing?.content ?? "");
@@ -229,6 +331,14 @@ function AssetCard({
           )}
         </div>
       )}
+
+      {template.supportsImage && existing?.status === "complete" && onGenerateImages && (
+        <ImageSubsection
+          images={images ?? []}
+          isGenerating={!!isImageGenerating}
+          onGenerateImages={onGenerateImages}
+        />
+      )}
     </div>
   );
 }
@@ -238,16 +348,19 @@ export function GenerateAssetPanel({
   onboardingComplete,
   hasOnboardingResponses,
   initialAssets,
+  imagesByAssetId,
 }: {
   projectId: string;
   onboardingComplete: boolean;
   hasOnboardingResponses: boolean;
   initialAssets: GeneratedAsset[];
+  imagesByAssetId: Record<string, AssetFileWithUrl[]>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [isBatchPending, setIsBatchPending] = useState(false);
+  const [activeImageAssetId, setActiveImageAssetId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const assetsByKey = new Map(initialAssets.map((a) => [a.asset_key, a]));
@@ -276,6 +389,7 @@ export function GenerateAssetPanel({
         setError(data.error ?? "Request failed");
       }
       setActiveKey(null);
+      setActiveImageAssetId(null);
       router.refresh();
     });
   }
@@ -283,6 +397,14 @@ export function GenerateAssetPanel({
   function handleGenerate(assetKey: string) {
     setActiveKey(assetKey);
     callApi({ projectId, assetKey }, "/api/generate");
+  }
+
+  function handleGenerateImages(generatedAssetId: string, customPrompt: string, count: number) {
+    setActiveImageAssetId(generatedAssetId);
+    callApi(
+      { generatedAssetId, customPrompt: customPrompt.trim() || undefined, count },
+      "/api/generate-image"
+    );
   }
 
   function handleGenerateAllFoundational() {
@@ -462,6 +584,8 @@ export function GenerateAssetPanel({
                   {templates.map((template) => {
                     const existing = assetsByKey.get(template.id);
                     const isGeneratingThis = isPending && activeKey === template.id;
+                    const isImageGeneratingThis =
+                      isPending && !!existing && activeImageAssetId === existing.id;
                     return (
                       <AssetCard
                         key={template.id}
@@ -470,6 +594,14 @@ export function GenerateAssetPanel({
                         isGenerating={isGeneratingThis}
                         disabled={false}
                         onGenerate={() => handleGenerate(template.id)}
+                        images={existing ? imagesByAssetId[existing.id] : undefined}
+                        isImageGenerating={isImageGeneratingThis}
+                        onGenerateImages={
+                          existing
+                            ? (customPrompt, count) =>
+                                handleGenerateImages(existing.id, customPrompt, count)
+                            : undefined
+                        }
                       />
                     );
                   })}

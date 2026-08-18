@@ -73,6 +73,14 @@ export interface AssetTemplate {
   // phases this belongs to, purely for UI grouping (see MARKETING_PHASES
   // below). Undefined for foundational-tier assets.
   phase?: "2" | "3a" | "3b" | "3c";
+  // Whether this asset can have accompanying AI-generated images (social
+  // posts, teaser/banner visuals). Image generation happens as a separate
+  // step from text generation (see app/api/generate-image/route.ts) and
+  // requires the text content to already exist.
+  supportsImage?: boolean;
+  // Preferred image dimensions when supportsImage is true. Defaults to
+  // square if omitted.
+  imageSize?: "1024x1024" | "1536x1024" | "1024x1536";
 }
 
 // All foundational assets — generated together as a batch, all show
@@ -653,6 +661,8 @@ Start with a "TEASER POSITIONING SUMMARY" (core positioning, primary investor au
     buildUserPrompt: (a) =>
       withKnowledgeBase("Create the complete investor teaser described above.", a),
     maxTokens: 5000,
+    supportsImage: true,
+    imageSize: "1536x1024",
   },
 
   {
@@ -787,6 +797,8 @@ Output only the finished post text -- no preamble, no "Option A/B," no explanati
         a
       ),
     maxTokens: 500,
+    supportsImage: true,
+    imageSize: "1536x1024",
   },
   {
     id: "x_post",
@@ -809,6 +821,8 @@ If a single post: output just the post text. If a thread: number each post (1/, 
         a
       ),
     maxTokens: 400,
+    supportsImage: true,
+    imageSize: "1536x1024",
   },
   {
     id: "facebook_post",
@@ -833,6 +847,8 @@ Output only the finished post text -- no preamble.` +
         a
       ),
     maxTokens: 400,
+    supportsImage: true,
+    imageSize: "1536x1024",
   },
   {
     id: "tiktok_script",
@@ -861,6 +877,8 @@ Output only the finished script -- no preamble.` +
         a
       ),
     maxTokens: 500,
+    supportsImage: true,
+    imageSize: "1024x1536",
   },
   {
     id: "reddit_post",
@@ -886,6 +904,8 @@ Then: a post title, then the post body. Output only the finished post -- no prea
         a
       ),
     maxTokens: 600,
+    supportsImage: true,
+    imageSize: "1024x1024",
   },
   {
     id: "bluesky_post",
@@ -908,6 +928,8 @@ Output only the finished post text -- no preamble.` +
         a
       ),
     maxTokens: 300,
+    supportsImage: true,
+    imageSize: "1536x1024",
   },
   {
     id: "substack_article",
@@ -1191,6 +1213,34 @@ Three clearly labeled emails (Email 1: Invite / Email 2: Reminder / Email 3: Fol
         a
       ),
     maxTokens: 1500,
+  },
+  {
+    id: "event_banner",
+    label: "Event Banner",
+    category: "event",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    supportsImage: true,
+    imageSize: "1536x1024",
+    systemPrompt:
+      `Write a short caption/alt-text set for an event promotional banner image for a fund-hosted investor event. This asset's real output is the image (generated separately) -- this text is the caption and image-generation guidance that accompanies it.
+
+Do not invent a specific event date, location, or attendance figures not present in the knowledge base -- use "[INSERT DATE]" placeholders where needed.
+
+OUTPUT FORMAT
+1. Banner Headline -- under 8 words, what would appear as text overlay if the design team adds text (the AI-generated image itself should NOT contain rendered text -- image models render text poorly and this will be added in design)
+2. Alt Text -- one sentence describing the banner for accessibility
+3. Suggested Visual Direction -- 2-3 sentences describing the scene/composition/mood for the banner image, consistent with the fund's stated visual style (institutional, minimalist, etc.) -- no literal depictions of real named individuals, logos, or any specific real company
+
+Output only the finished content in the format above -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the event banner caption and visual direction described above.",
+        a
+      ),
+    maxTokens: 400,
   },
 
 ];

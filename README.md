@@ -151,6 +151,31 @@ The flat 13-asset "marketing" list has been replaced with a phase-organized stru
 - **UI:** the Marketing Assets section now groups cards under a phase sub-header ("Phase 2 — Fundraising & Legal", "Phase 3A — Marketing Content") instead of one flat list.
 - All 21 new system prompts were drafted from standard practice for each format, not client-supplied instructions — same review caveat as the foundational documents and Executive Briefing before it.
 
+## Image generation (social posts, teaser, event banners)
+
+Seven assets now support an optional accompanying AI-generated image, using OpenAI's `gpt-image-1`: LinkedIn Post, X Post, Facebook Post, Reddit Post, Bluesky Post, TikTok Script (cover image), Investor Teaser, plus a new **Event Banner** asset (caption + image, no other body text).
+
+**Setup required — this needs a real OpenAI API key, not a ChatGPT login:**
+1. Go to **platform.openai.com** (not chat.openai.com) → **Settings → Billing** → add a payment method (separate from any ChatGPT subscription).
+2. **API Keys** → **Create new secret key** → copy the `sk-...` value.
+3. Add `OPENAI_API_KEY` in Vercel (Environment Variables) and locally in `.env.local`.
+4. **First-time-only:** OpenAI requires "API Organization Verification" before `gpt-image-1` will work on a new key/org — if the first image generation attempt fails with a verification error, that's expected; complete verification at platform.openai.com and retry.
+
+**How it works:**
+- Image generation is a **separate step from text generation** — the text asset (e.g. the LinkedIn post copy) must already be generated before the "Images" section on that card becomes available.
+- Each image-capable card gets: a gallery of generated images, a custom-prompt textarea (optional — leave blank to use a default prompt built from the fund's stated visual style), a count selector (1/2/4 images per generation, up to OpenAI's max of 10 per call), and a Generate/Regenerate button.
+- Every image has its own **Download** link (opens the full-resolution file).
+- Regenerating **replaces** the current set of images for that asset, it doesn't append to it.
+- Default image prompts explicitly avoid: legible text/words in the image, real named individuals, and real logos/trademarks — image models render text poorly and can't accurately depict real people, so asking for those produces bad or misleading results.
+
+**Storage & access:** generated images live in a private Supabase Storage bucket (`asset-images`), never public — the app displays them via short-lived (1 hour) signed URLs generated fresh on every page load, same "team login required" model as everything else in this app.
+
+**Migration required:** run `supabase/migrations/0003_asset_images_storage.sql` — creates the storage bucket and extends `asset_files` to allow the `png` format.
+
+**Cost note:** `gpt-image-1` is priced per-image (roughly $0.005–$0.052 depending on quality/size) or token-based — cheap per image, but this is a genuinely new cost source on top of the Anthropic text-generation costs tracked earlier. Not yet folded into the per-asset cost estimates I gave you before.
+
+**Not built:** actual video or voice generation (Phase 3C) — this covers static images only.
+
 ## What I need from you next
 
 - Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).

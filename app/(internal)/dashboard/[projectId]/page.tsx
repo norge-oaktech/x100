@@ -6,6 +6,8 @@ import type {
   Project,
   Client,
   GeneratedAsset,
+  AssetFile,
+  AssetFileWithUrl,
 } from "@/types/database";
 import { GenerateAssetPanel } from "./GenerateAssetPanel";
 
@@ -45,6 +47,30 @@ export default async function ProjectDetailPage({
     .eq("project_id", project.id)
     .order("created_at", { ascending: true })
     .returns<GeneratedAsset[]>();
+
+  const generatedAssetIds = (generatedAssets ?? []).map((a) => a.id);
+
+  const { data: assetFiles } = generatedAssetIds.length
+    ? await supabase
+        .from("asset_files")
+        .select("*")
+        .in("generated_asset_id", generatedAssetIds)
+        .order("created_at", { ascending: true })
+        .returns<AssetFile[]>()
+    : { data: [] as AssetFile[] };
+
+  // Sign every image path (1 hour expiry — regenerated on every page load,
+  // so this is generous enough for a single review session).
+  const imagesByAssetId: Record<string, AssetFileWithUrl[]> = {};
+  for (const file of assetFiles ?? []) {
+    const { data: signed } = await supabase.storage
+      .from("asset-images")
+      .createSignedUrl(file.storage_path, 3600);
+    if (!signed) continue;
+    const list = imagesByAssetId[file.generated_asset_id] ?? [];
+    list.push({ ...file, url: signed.signedUrl });
+    imagesByAssetId[file.generated_asset_id] = list;
+  }
 
   const onboardingUrl = `${
     process.env.NEXT_PUBLIC_APP_URL ?? ""
@@ -107,6 +133,7 @@ export default async function ProjectDetailPage({
         onboardingComplete={onboardingComplete}
         hasOnboardingResponses={!!response}
         initialAssets={generatedAssets ?? []}
+        imagesByAssetId={imagesByAssetId}
       />
 
       {!response ? (
