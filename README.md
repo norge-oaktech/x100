@@ -139,14 +139,21 @@ Editing generated content before approval is intentionally **not** restricted to
 
 **Migration note:** run `supabase/migrations/0002_approval_workflow.sql` if you haven't already — no new migration was needed for this round, the existing approval columns cover everything here.
 
-## What I need from you to move to Phase 3
+## Asset catalog restructure (Phase 2 + 3A)
 
-Once you've tested the Cold Outreach Email generation and are happy with
-the output quality (or have feedback on tone/prompt tuning):
-- Confirm you're ready to add the remaining 7 assets (website hero, landing
-  page, follow-up email, LinkedIn post, one-pager, investor FAQ, voicemail
-  script) as config entries the same way
-- Any example copy/briefs you already have for those 7, if you want the
-  prompts tuned to match an existing voice rather than written from scratch
-- Confirmation on delivery target for file export (Supabase Storage vs
-  SharePoint) so Phase 3/4 builds the right output path from the start
+The flat 13-asset "marketing" list has been replaced with a phase-organized structure matching your Phase 2/3A/3B/3C planning docs:
+
+- **Dropped:** Cold Outreach Email, Terms of Service, Privacy Policy, Executive Briefing — none were in the Phase 2/3A screenshots. Cold Outreach Email conceptually returns under Phase 3B ("Email Sequences"/"Outbound Sequences") when that phase gets built.
+- **Phase 2 — Fundraising & Legal** (5 assets): Business PPM Draft, Business Profile, Proforma Explanations, Legal Draft Assistance, Pitch Deck Copy (kept from before, reassigned here).
+- **Phase 3A — Marketing Content** (25 assets): Website Homepage/Fund/About/Contact, Landing Page, Teaser, both Event Presentations (all kept from before) + 17 new text assets — Blog Article, LinkedIn/X/Facebook/Reddit/Bluesky/TikTok/Substack posts, Lead Magnet, SEO Page Copy, Google Business Profile, AI SEO/GEO Content, Webinar Q&A Prep, Press Release, Event Landing Page/RSVP, Webinar Talking Points, Event Email Content.
+- **Not built:** Phase 3B (Sales Enablement) and Phase 3C (Video & Audio) — 3C specifically needs real image/video/voice generation integrations (HeyGen, ElevenLabs, Opus Clip, Higgsfield, Vapi, etc.) that don't exist in this app yet. That's a separate integration project per tool, not something that follows from writing more Claude prompts — flag when you're ready to scope that.
+- **Gating:** unchanged — all Phase 2 + 3A assets unlock together once the 4 required foundational documents are approved. No approval step of their own (same as the old marketing tier). No sequential lock between Phase 2 and 3A themselves.
+- **UI:** the Marketing Assets section now groups cards under a phase sub-header ("Phase 2 — Fundraising & Legal", "Phase 3A — Marketing Content") instead of one flat list.
+- All 21 new system prompts were drafted from standard practice for each format, not client-supplied instructions — same review caveat as the foundational documents and Executive Briefing before it.
+
+## What I need from you next
+
+- Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).
+- Any real prompt materials for Phase 2/3A items if you have them, to replace the standard-practice drafts with your actual voice/structure.
+- Whenever you're ready to scope Phase 3B (Sales Enablement) — those are all still text-only, so straightforward to add the same way.
+- Whenever you're ready to scope Phase 3C (Video & Audio) — this needs a separate conversation about which specific tools to integrate and API access for each, since it's new infrastructure, not new prompts.

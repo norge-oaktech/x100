@@ -1,31 +1,34 @@
 // Data-driven asset template registry.
 //
-// Adding asset #20+ later = appending an object to ASSET_TEMPLATES below.
+// Adding assets later = appending an object to ASSET_TEMPLATES below.
 // Nothing else in the app branches on individual asset ids — the generate
 // route and the dashboard panel both just iterate this array.
 //
 // Two tiers (see AssetTemplate.tier): "foundational" documents (ICP, Brand
 // Identity, Brand Guidelines, Messaging Framework, Case Studies, DDQ) are
 // generated first and require approval; "marketing" assets (website, decks,
-// etc.) are locked until every foundational asset is approved — enforced
-// in app/api/generate/route.ts, not just the UI.
+// social posts, etc.) are locked until every REQUIRED foundational asset is
+// approved — enforced in app/api/generate/route.ts, not just the UI.
 //
-// System prompts for the marketing-tier assets below are adapted from the
-// client's own prompt documents (PROMPT_FOR_WEBSITE_COPY.docx,
-// Prompt_Landing_Page_FI___FR.docx, Prompt_Event_Presentation.docx,
-// Prompt_Teaser.docx, Prompt_Pitch_Deck.docx) with two changes: (1) removed
-// multi-turn "thread" language ("this thread already contains...", "ask if
-// you should proceed") since each asset is a single generation call, not a
-// back-and-forth conversation — the fund knowledge base is passed fresh on
-// every call via buildKnowledgeBase(); (2) the Website Copy prompt
-// originally covered all 6 pages in one response — split into 6 separate
-// asset entries here so each page is its own generation, review, and
-// (later) downloadable file.
+// Marketing-tier assets carry a `phase` matching the client's own
+// "Phase 2/3A/3B/3C Tool Stack" planning docs, used purely for UI grouping
+// (all phases unlock together once foundational is approved — there's no
+// sequential lock between phases themselves). Only Phase 2 (Fundraising &
+// Legal) and Phase 3A (Marketing Content) are built. Phase 3B (Sales
+// Enablement) and 3C (Video & Audio) are deferred — 3C in particular needs
+// real image/video/voice generation integrations (HeyGen, ElevenLabs, Opus
+// Clip, etc.) that this app doesn't have; that's a separate project, not
+// something addressable by writing more Claude prompts.
 //
-// Executive Briefing and all 6 foundational documents have no source
-// prompt (no materials were provided) — their system prompts were drafted
-// from standard practice / structural outlines and should be reviewed once
-// real source materials are available.
+// Dropped from the prior flat asset list (not in the Phase 2/3A screenshots):
+// Cold Outreach Email (returns later under Phase 3B), Terms of Service,
+// Privacy Policy, Executive Briefing.
+//
+// System prompts for the website/landing-page/teaser/pitch-deck/event assets
+// are adapted from the client's own prompt documents; everything else below
+// (all foundational documents, and every Phase 2/3A asset added in this
+// round) was drafted from standard practice, not client-supplied
+// instructions, and should be reviewed before relying on it.
 
 import { buildKnowledgeBase } from "./knowledgeBase";
 
@@ -38,7 +41,17 @@ export type AssetCategory =
   | "teaser"
   | "presentation"
   | "briefing"
-  | "foundational";
+  | "foundational"
+  | "legal"
+  | "profile"
+  | "financial"
+  | "blog"
+  | "social"
+  | "lead_magnet"
+  | "seo"
+  | "webinar"
+  | "press"
+  | "event";
 
 type OnboardingAnswers = Record<string, string | string[]>;
 
@@ -53,9 +66,13 @@ export interface AssetTemplate {
   // "foundational" = ICP/Brand Identity/etc — generated first, requires
   // approval, gates every "marketing" asset from being generated at all.
   // "marketing" = the client-facing deliverables (website, decks, etc.) —
-  // no approval step of their own, but blocked until every foundational
-  // asset for the project is approved.
+  // no approval step of their own, but blocked until every REQUIRED
+  // foundational asset for the project is approved.
   tier: "foundational" | "marketing";
+  // Only meaningful for tier: "marketing" — which of the client's planning
+  // phases this belongs to, purely for UI grouping (see MARKETING_PHASES
+  // below). Undefined for foundational-tier assets.
+  phase?: "2" | "3a" | "3b" | "3c";
 }
 
 // All foundational assets — generated together as a batch, all show
@@ -89,13 +106,6 @@ ${buildKnowledgeBase(answers)}`;
 }
 
 export const ASSET_TEMPLATES: AssetTemplate[] = [
-  // =====================================================================
-  // FOUNDATIONAL DOCUMENTS
-  // Generated first, require approval, gate every marketing-tier asset.
-  // No source prompt materials were provided for these six -- all drafted
-  // from standard practice + the fund's knowledge base. Flag for review,
-  // same as Executive Briefing below.
-  // =====================================================================
   {
     id: "icp_generation",
     label: "ICP Generation — Ideal Investor Profile",
@@ -273,28 +283,201 @@ NOTE: this asset's prompt was drafted from standard institutional DDQ structure,
   // MARKETING ASSETS (tier: "marketing")
   // Locked until every foundational asset above is approved.
   // =====================================================================
+
+  // =====================================================================
+  // MARKETING ASSETS (tier: "marketing")
+  // Locked until every REQUIRED foundational asset above is approved.
+  // Organized by phase (see AssetTemplate.phase) matching the client's
+  // "Phase 2/3A/3B/3C Tool Stack" planning docs. Phase 3B (Sales
+  // Enablement) and 3C (Video & Audio) are not built yet -- 3C in
+  // particular needs real image/video/voice API integrations this app
+  // doesn't have, which is a separate project. Phase 2 and 3A cover only
+  // text-based deliverables; where a screenshot item described a non-text
+  // output (Events: Banners, Website "Automation") it was intentionally
+  // left out rather than faked as text.
+  // =====================================================================
+
+  // --- Phase 2: Fundraising & Legal ---
   {
-    id: "cold_outreach_email_1",
-    label: "Cold Outreach Email — Investor Introduction",
-    category: "email",
+    id: "business_ppm_draft",
+    label: "Business PPM Draft",
+    category: "legal",
     tier: "marketing",
+    phase: "2",
     outputFormat: "docx",
     systemPrompt:
-      "You are a placement-agent-caliber copywriter writing on behalf of a fund's Managing Partner to a prospective LP who has never interacted with the fund. Match the fund's stated communication style exactly -- do not default to generic salesy language. Keep the email under 150 words. Output a Subject line on the first line, then a blank line, then the email body. Do not include any preamble, explanation, or commentary -- output only the subject and email body." +
+      `You are drafting a first-pass Private Placement Memorandum (PPM) section set for a private investment fund, using investment-grade institutional language. A PPM is a securities offering document -- this draft is a starting point for securities counsel, not a finished offering document, and must never be used to actually solicit investment in its current form.
+
+CRITICAL: this is more legally sensitive than any other asset type in this system. Do not invent any legal, regulatory, tax, or securities-law language. Where the knowledge base does not specify something, write "[TO BE DRAFTED BY SECURITIES COUNSEL]" -- do not attempt to approximate legal boilerplate yourself.
+
+Begin the document with, in bold: "DRAFT -- FOR INTERNAL USE ONLY. This is a first-pass content draft, not a Private Placement Memorandum. It has not been prepared or reviewed by securities counsel, contains no legally required disclosures, and must not be shared with, or used to solicit, any investor."
+
+STRUCTURE
+1. Cover Page -- fund name, vehicle name, confidentiality legend ("[TO BE DRAFTED BY SECURITIES COUNSEL]" for exact legal legend text)
+2. Executive Summary -- fund overview, strategy, and opportunity in plain institutional language, drawn only from the knowledge base
+3. The Opportunity / Market Thesis -- why this strategy, why now, why this team
+4. Investment Strategy -- mandate, stage, sector, geography, target investment size, portfolio construction
+5. Fund Terms Summary -- fund size, fees, carry, hurdle, fund life, capital call mechanics (state plainly that final legal terms are governed by the Limited Partnership Agreement, not this document)
+6. Management Team -- principals and relevant experience, only as documented
+7. Fund Structure & Governance -- entity structure and GP/LP relationship, marking undocumented specifics for counsel
+8. Risk Factors -- a placeholder section noting that a complete risk factors section is a required, heavily negotiated part of any real PPM and must be drafted by securities counsel; do not attempt to draft actual risk factor language yourself beyond noting general categories (market risk, illiquidity, concentration risk, key-person risk) in one line each
+9. Subscription Procedure -- "[TO BE DRAFTED BY SECURITIES COUNSEL]"
+10. Legal & Regulatory Disclosures -- "[TO BE DRAFTED BY SECURITIES COUNSEL]"
+
+OUTPUT FORMAT
+Use clear section headers. Output only the finished draft, starting with the DRAFT warning banner above.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Write a first-touch cold outreach email introducing the fund to a prospective investor who fits the fund's stated target investor profile.",
+        "Draft the first-pass Private Placement Memorandum described above.",
         a
       ),
-    maxTokens: 600,
+    maxTokens: 9000,
   },
+  {
+    id: "business_profiles",
+    label: "Business Profile",
+    category: "profile",
+    tier: "marketing",
+    phase: "2",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are drafting a concise, institutional "Business Profile" document for a private investment fund -- a standalone one-to-two-page snapshot used in data rooms, LP materials, and introductory packages. This is distinct from Brand Identity (strategic) and ICP (investor-facing persona) -- this is a factual, at-a-glance reference.
+
+STRUCTURE
+1. Firm Snapshot -- fund/firm name, management entity, headquarters/geography, website, year of formation if known
+2. Leadership -- key principals and roles, only as documented
+3. Strategy Summary -- mandate, sector, stage, geography, target check size in 3-4 sentences
+4. Track Record Summary -- one paragraph, using only documented figures; if none are documented, state that plainly rather than omitting the section entirely
+5. Key Differentiators -- 3-5 bullet points
+6. Current Fund -- vehicle name, target size, fund terms at a glance
+7. Contact -- website and general inquiry language (use "[INSERT CONTACT DETAILS]" for anything not in the knowledge base)
+
+OUTPUT FORMAT
+Clean, scannable, institutional. Use clear section headers. Output only the finished profile -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Draft the standalone Business Profile document described above.",
+        a
+      ),
+    maxTokens: 2000,
+  },
+  {
+    id: "proforma_explanations",
+    label: "Proforma Explanations",
+    category: "financial",
+    tier: "marketing",
+    phase: "2",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are a fund finance professional writing a narrative explanation of a private fund's financial model and proforma assumptions -- intended to help LPs and internal stakeholders understand the reasoning behind the model's numbers, not to replace the spreadsheet model itself.
+
+Draw specifically on any knowledge-base fields covering capital formation, deployment assumptions, return assumptions, revenue and fee structure, operating expenses, investor structure, and scenario modeling. Do not invent figures beyond what's documented -- where an assumption category exists in the model but isn't detailed in the knowledge base, state plainly that the specific assumption should be confirmed against the underlying model.
+
+STRUCTURE
+1. Purpose of This Document -- one short paragraph framing this as a plain-language companion to the fund's financial model
+2. Capital Formation Assumptions -- how and when capital is expected to be raised
+3. Deployment Assumptions -- pacing, number of investments, check sizing logic
+4. Return Assumptions -- how target IRR/MOIC assumptions were derived, including scenario/outcome distribution if documented
+5. Revenue & Fee Structure -- how management fees and carry flow through the model
+6. Operating Expense Assumptions -- what's included in modeled fund expenses
+7. Investor Structure Assumptions -- how LP commitments and capital calls are modeled
+8. Key Sensitivities -- what would move the numbers most, based only on what's documented (e.g., deployment pace, exit multiple)
+
+OUTPUT FORMAT
+Clear section headers, plain but technically accurate prose. Output only the finished document -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the narrative Proforma Explanations document described above.",
+        a
+      ),
+    maxTokens: 3000,
+  },
+  {
+    id: "legal_draft_assistance",
+    label: "Legal Draft Assistance — Key Terms Summary",
+    category: "legal",
+    tier: "marketing",
+    phase: "2",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are assembling a "Key Terms Summary" for a private investment fund -- a structured starting point for outside securities/fund counsel drafting formal fund documents (LPA, subscription agreement, PPM). This is a briefing document for lawyers, not a substitute for legal drafting, and must never be represented as legal advice or a finished legal document.
+
+Begin with, in bold: "This is a fact-gathering summary prepared to assist outside counsel in drafting formal fund documents. It is not legal advice and has not been reviewed by an attorney."
+
+Do not invent legal terms, entity details, or regulatory positions. Every item not present in the knowledge base should read "[CONFIRM WITH COUNSEL]" rather than a guess.
+
+STRUCTURE
+1. Entity Structure -- management company, GP, fund vehicle, ownership as documented
+2. Economic Terms -- management fee, carried interest, preferred return/hurdle, catch-up, fund life, investment period
+3. Capital Mechanics -- capital call process, minimum investment, GP commitment (if documented)
+4. Governance -- decision-making structure, key-person provisions (if documented)
+5. Service Providers -- administrator, auditor, legal counsel, compliance consultant, as documented
+6. Regulatory Posture -- registration/regulatory framework as stated in the knowledge base
+7. Open Items for Counsel -- a consolidated bullet list of every "[CONFIRM WITH COUNSEL]" item above, so nothing gets missed
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished summary -- no preamble beyond the bold notice above.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Draft the Key Terms Summary described above, to hand to outside counsel.",
+        a
+      ),
+    maxTokens: 6000,
+  },
+
+  {
+    id: "pitch_deck",
+    label: "Pitch Deck (12 Slides)",
+    category: "presentation",
+    tier: "marketing",
+    phase: "2",
+    outputFormat: "pptx",
+    systemPrompt:
+      `You are an elite private markets pitch deck strategist and institutional fundraising consultant. Create a highly visual, institutional-quality 12-slide fundraising pitch deck designed to attract HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
+
+Do not invent returns, performance, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or fund terms not present in the knowledge base -- omit, mark "Not specified," or use compliant general wording instead.
+
+STYLE
+Visual and presentation-driven, not text-heavy. Concise headlines and scannable structure, no dense paragraphs. Explain WHY the opportunity matters before HOW the strategy works. No hype, no guaranteed-return language.
+
+12-SLIDE STRUCTURE -- for each slide provide: Slide Title, Core Objective, Key Messages, Suggested On-Slide Copy, Recommended Visual Direction, Key Metrics/Data Points to Highlight.
+1. Cover -- fund name, one-line descriptor, positioning headline, supporting statement
+2. The Problem -- market inefficiency, fragmentation, why incumbents struggle
+3. The Solution -- what the fund/platform does, operational model
+4. Why Now -- market shifts, structural tailwinds, timing drivers
+5. Market Opportunity -- market size/growth if available, demand drivers
+6. Business Model / Strategy -- how value is created, revenue model, operating leverage
+7. Traction / Foundation -- existing metrics, operational footprint, partnerships if confirmed
+8. Competitive Advantage -- proprietary edge, differentiation
+9. Go-to-Market / Execution Strategy -- sourcing, distribution, scaling approach
+10. Team -- relevant experience and sector expertise (do not invent biographies)
+11. Financial Overview -- only if supported by the knowledge base: revenue profile, margin drivers, high-level projections
+12. The Ask / CTA -- capital raise objective, investor fit, next steps, data room invitation
+
+OUTPUT FORMAT
+Start with a "PITCH DECK POSITIONING SUMMARY" (core positioning, primary investor audience, key market narrative, main investment thesis, communication style, visual direction), then the full slide-by-slide breakdown, then a short quality check confirming no unsupported claims were used and the deck is presentation-ready.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Create the complete 12-slide pitch deck storyline and slide-by-slide breakdown described above.",
+        a
+      ),
+    maxTokens: 6000,
+  },
+
+
+  // --- Phase 3A: Marketing Content ---
 
   {
     id: "website_homepage",
     label: "Website — Homepage",
     category: "website",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter and investment communications strategist with deep experience writing investor-facing websites for alternative investment funds, private equity firms, venture capital firms, real estate funds, private credit funds, hedge funds, and emerging managers.
@@ -333,6 +516,7 @@ Use clear section headers. Keep paragraphs concise and readable. Include suggest
     label: "Website — Fund Page",
     category: "website",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund. The tone should be sophisticated, investor-facing, clear, institutional but approachable, and compliant-aware -- clarity over hype.
@@ -352,6 +536,7 @@ Use clear section headers, short paragraphs, and suggested CTAs where appropriat
     label: "Website — About Page",
     category: "website",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund.
@@ -371,6 +556,7 @@ Use clear section headers and short, readable paragraphs. Output only the finish
     label: "Website — Contact Page",
     category: "website",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets website copywriter writing investor-facing website copy for an alternative investment fund.
@@ -384,45 +570,11 @@ Do not invent contact details, entity names, or legal disclosures not present in
     maxTokens: 700,
   },
   {
-    id: "website_terms_of_service",
-    label: "Website — Terms of Service",
-    category: "website",
-    tier: "marketing",
-    outputFormat: "docx",
-    systemPrompt:
-      `You are drafting a professional Terms of Service page for a private investment fund's website. Write in professional legal-style language suitable for a fund website while remaining reasonably understandable to a non-legal reader.
-
-Include sections covering: informational purposes only, no investment advice, no offer to sell securities, investor responsibility, forward-looking statements, intellectual property, website usage limitations, third-party links, limitation of liability, jurisdiction/governing law, changes to terms, and contact information.
-
-This is a template requiring legal review before publishing -- note that clearly at the top of the output. Do not invent the fund's legal entity name, jurisdiction, or governing law if not present in the knowledge base -- use "[INSERT ENTITY NAME]" / "[INSERT JURISDICTION]" placeholders instead. Output only the finished page copy -- no preamble beyond the legal-review note.` +
-      KB_GUARDRAILS,
-    buildUserPrompt: (a) =>
-      withKnowledgeBase("Draft the Terms of Service page described above.", a),
-    maxTokens: 1400,
-  },
-  {
-    id: "website_privacy_policy",
-    label: "Website — Privacy Policy",
-    category: "website",
-    tier: "marketing",
-    outputFormat: "docx",
-    systemPrompt:
-      `You are drafting a professional Privacy Policy page for a private investment fund's website. The policy should feel professional, modern, legally aware, and easy to follow.
-
-Include sections covering: information collected, how information is used, cookies and analytics, email communications, third-party services, data protection, information sharing limitations, investor inquiry information, compliance obligations, user rights, policy updates, and contact information.
-
-This is a template requiring legal review before publishing -- note that clearly at the top of the output. Do not invent entity names or jurisdiction-specific compliance claims (e.g. GDPR/CCPA applicability) not present in the knowledge base -- use "[INSERT]" placeholders instead. Output only the finished page copy -- no preamble beyond the legal-review note.` +
-      KB_GUARDRAILS,
-    buildUserPrompt: (a) =>
-      withKnowledgeBase("Draft the Privacy Policy page described above.", a),
-    maxTokens: 1400,
-  },
-
-  {
     id: "investor_landing_page",
     label: "Investor Landing Page — Data Room Request",
     category: "landing_page",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert in private equity, alternative funds, emerging manager fundraising, investor psychology, institutional-grade capital raising, and high-converting investor landing page copywriting.
@@ -474,6 +626,7 @@ Return, in order: (1) the full landing page copy section by section (Section Nam
     label: "Investor Teaser",
     category: "teaser",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
       `You are an expert private markets copywriter and investor communications strategist specializing in institutional-quality fund teasers and capital raising materials.
@@ -503,49 +656,11 @@ Start with a "TEASER POSITIONING SUMMARY" (core positioning, primary investor au
   },
 
   {
-    id: "pitch_deck",
-    label: "Pitch Deck (12 Slides)",
-    category: "presentation",
-    tier: "marketing",
-    outputFormat: "pptx",
-    systemPrompt:
-      `You are an elite private markets pitch deck strategist and institutional fundraising consultant. Create a highly visual, institutional-quality 12-slide fundraising pitch deck designed to attract HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
-
-Do not invent returns, performance, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or fund terms not present in the knowledge base -- omit, mark "Not specified," or use compliant general wording instead.
-
-STYLE
-Visual and presentation-driven, not text-heavy. Concise headlines and scannable structure, no dense paragraphs. Explain WHY the opportunity matters before HOW the strategy works. No hype, no guaranteed-return language.
-
-12-SLIDE STRUCTURE -- for each slide provide: Slide Title, Core Objective, Key Messages, Suggested On-Slide Copy, Recommended Visual Direction, Key Metrics/Data Points to Highlight.
-1. Cover -- fund name, one-line descriptor, positioning headline, supporting statement
-2. The Problem -- market inefficiency, fragmentation, why incumbents struggle
-3. The Solution -- what the fund/platform does, operational model
-4. Why Now -- market shifts, structural tailwinds, timing drivers
-5. Market Opportunity -- market size/growth if available, demand drivers
-6. Business Model / Strategy -- how value is created, revenue model, operating leverage
-7. Traction / Foundation -- existing metrics, operational footprint, partnerships if confirmed
-8. Competitive Advantage -- proprietary edge, differentiation
-9. Go-to-Market / Execution Strategy -- sourcing, distribution, scaling approach
-10. Team -- relevant experience and sector expertise (do not invent biographies)
-11. Financial Overview -- only if supported by the knowledge base: revenue profile, margin drivers, high-level projections
-12. The Ask / CTA -- capital raise objective, investor fit, next steps, data room invitation
-
-OUTPUT FORMAT
-Start with a "PITCH DECK POSITIONING SUMMARY" (core positioning, primary investor audience, key market narrative, main investment thesis, communication style, visual direction), then the full slide-by-slide breakdown, then a short quality check confirming no unsupported claims were used and the deck is presentation-ready.` +
-      KB_GUARDRAILS,
-    buildUserPrompt: (a) =>
-      withKnowledgeBase(
-        "Create the complete 12-slide pitch deck storyline and slide-by-slide breakdown described above.",
-        a
-      ),
-    maxTokens: 6000,
-  },
-
-  {
     id: "event_presentation_educational",
     label: "Event Presentation — Educational (11–14 Slides)",
     category: "presentation",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "pptx",
     systemPrompt:
       `Act as a top-tier management consultant, institutional financial copywriter, and executive presentation strategist. Create a polished, defensible, educational 11-to-14-slide presentation using only the provided fund knowledge base.
@@ -583,6 +698,7 @@ Start with a slide-by-slide outline, then the full editable slide content. Keep 
     label: "Event Presentation — Solicitation (11–14 Slides)",
     category: "presentation",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "pptx",
     systemPrompt:
       `Act as a top-tier management consultant, institutional fundraising strategist, and executive presentation designer. Create a highly polished, solicitation-oriented investor presentation (11 to 14 slides, optimized for a 15-25 minute live presentation) for EO/YPO members, founders, accredited investors, family offices, and institutional allocators.
@@ -618,46 +734,465 @@ Start with a slide-by-slide outline, then the full editable slide content.` +
       ),
     maxTokens: 6000,
   },
-
   {
-    id: "executive_briefing_outreach",
-    label: "Executive Briefing — Investor Outreach & Conversion",
-    category: "briefing",
+    id: "blog_article",
+    label: "Blog Article",
+    category: "blog",
     tier: "marketing",
+    phase: "3a",
     outputFormat: "docx",
     systemPrompt:
-      `You are an institutional investor-relations and capital-raising strategist. Draft an internal Executive Briefing on optimizing investor outreach and conversion for this fund -- a strategy document for the fund's own team, not investor-facing copy.
+      `You are a thought-leadership writer for a private investment fund's website/blog. Choose one clear, specific angle grounded in the fund's stated market thesis, differentiators, or "why now" reasoning -- do not write a generic "about us" piece.
 
-Do not invent outreach results, response rates, or historical campaign performance not present in the knowledge base -- where the knowledge base doesn't specify a fundraising approach or communication preference, note it as "To be determined by the fundraising team" rather than fabricating a number.
+Do not invent market statistics, data points, or claims not present in the knowledge base.
 
 STRUCTURE
-I. The Reply-First Strategy -- a short framing section on prioritizing getting prospective investors to reply/engage over immediate conversion, based on the fund's stated communication style and what has historically built investor trust
-II. Campaign Options -- propose two distinct outbound campaign approaches suited to this fund (name them descriptively based on the fund's actual strategy and audience, not generically), each with a one-paragraph description of its angle and when to use it
-III. Success Benchmarks & Measurement -- suggested KPIs to track (reply rate, meeting-booked rate, data-room-request rate) and a note that specific numeric targets should be set once initial campaigns run, not invented here
-IV. Conclusion & Path Forward -- a short close tying the campaigns back to the fund's stated fundraising goals
-Rules of Engagement for Early Outreach -- a short list of dos/don'ts for the team's own outbound conversations, grounded in what the knowledge base says about investor objections, trust-builders, and communication style to avoid
+- A specific, non-generic headline
+- A hook opening (2-3 sentences) that states the core idea plainly
+- 3-4 body sections with subheadings, each developing one part of the argument using only knowledge-base-grounded reasoning and detail
+- A short closing section connecting the argument back to the fund's strategy, ending with a soft, non-pushy CTA (e.g., pointing to the fund's approach, not a hard sales pitch)
 
-Appendix A -- Elevator Pitch (a tight 3-4 sentence verbal pitch based on the fund's strategy and differentiators)
-Appendix B -- Campaign 1 email sequence (2-3 short sequential emails matching the first campaign option above)
-Appendix C -- Campaign 2 email sequence (2-3 short sequential emails matching the second campaign option above)
-Appendix D -- Keywords (a short list of search/SEO keywords relevant to the fund's sector and strategy, clearly marked as suggestions for the team to validate)
-Appendix E -- Webinar Title and Subject Matter Suggestions (3-5 suggested webinar topics tied to the fund's thesis)
-Appendix F -- Social Media Post Concepts (3-5 short post concepts, LinkedIn-first, matching the fund's stated tone)
-
-Do not invent specific named websites, keyword search volumes, or platform statistics not present in the knowledge base -- describe categories or approaches instead where specifics aren't available.
+Target length: 700-1000 words. Tone should match the fund's stated communication style exactly -- do not default to generic startup-blog enthusiasm.
 
 OUTPUT FORMAT
-Use clear section and appendix headers matching the structure above. Keep body sections concise (institutional, not padded). Output only the finished briefing -- no preamble.
-
-NOTE: this asset's prompt was drafted from a structural outline rather than the client's own source instructions -- flag any output from this template for review before relying on it, since the original source document with full instructions was not available.` +
+Headline, then the full article body with subheadings. Output only the finished article -- no preamble.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Draft the complete Executive Briefing described above.",
+        "Choose the most compelling angle available in the knowledge base and write the complete blog article described above.",
         a
       ),
-    maxTokens: 6000,
+    maxTokens: 2000,
   },
+  {
+    id: "linkedin_post",
+    label: "LinkedIn Post",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a single LinkedIn post for a private investment fund's Managing Partner, in first person. LinkedIn is the fund's primary social channel per the knowledge base -- match its stated content approach (market commentary or portfolio-company-style insight, authored under the partner's name, not a corporate brand voice).
+
+150-250 words. Institutional but readable -- short paragraphs or a light bulleted structure work well for LinkedIn's format. No hashtag spam (2-3 relevant hashtags maximum, if any). End with a soft, non-salesy closing line, not a hard CTA.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+OUTPUT FORMAT
+Output only the finished post text -- no preamble, no "Option A/B," no explanation.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write one LinkedIn post described above.",
+        a
+      ),
+    maxTokens: 500,
+  },
+  {
+    id: "x_post",
+    label: "X Post",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a single X (Twitter) post, or a short thread of 2-3 posts if the idea genuinely needs it, for a private investment fund. Each individual post must be under 280 characters.
+
+Punchy and direct, but still institutional -- this is not a retail-hype fintwit account. No emoji-stacking, no "🧵" thread-bait openers, no exclamation-point enthusiasm. State one clear idea per post, grounded only in the knowledge base.
+
+OUTPUT FORMAT
+If a single post: output just the post text. If a thread: number each post (1/, 2/, etc.) on its own line. Output only the finished post(s) -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the X post (or short thread) described above.",
+        a
+      ),
+    maxTokens: 400,
+  },
+  {
+    id: "facebook_post",
+    label: "Facebook Post",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a single Facebook post for a private investment fund. Facebook skews toward a slightly broader, less finance-native audience than LinkedIn, so add one extra sentence of plain-language context compared to a LinkedIn post, without dumbing down the substance or using hype language.
+
+150-200 words. Institutional but approachable. End with a soft closing line pointing toward the fund's website, not a hard sales CTA.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+OUTPUT FORMAT
+Output only the finished post text -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the Facebook post described above.",
+        a
+      ),
+    maxTokens: 400,
+  },
+  {
+    id: "tiktok_script",
+    label: "TikTok Script",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a short vertical-video script (30-45 seconds spoken, roughly 90-130 words) for a private investment fund's short-form video content -- educational/thought-leadership in style, not entertainment-style TikTok content. This is unusual territory for an institutional fund, so keep it credible: think "a founder explaining an idea clearly to camera," not viral-trend energy.
+
+Strong hook in the first line (the first 2-3 seconds are what determines if anyone keeps watching) -- lead with the most interesting idea, not a greeting.
+
+Do not invent statistics or claims not present in the knowledge base.
+
+OUTPUT FORMAT
+Write as a two-column-style script using labeled lines:
+HOOK: [opening line, spoken]
+[SCRIPT]: the spoken script broken into short lines, with bracketed visual/shot suggestions in italics-style brackets between lines where useful, e.g. [cut to whiteboard sketch of the thesis]
+CAPTION: a short on-screen caption/title suggestion
+Output only the finished script -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the TikTok script described above.",
+        a
+      ),
+    maxTokens: 500,
+  },
+  {
+    id: "reddit_post",
+    label: "Reddit Post",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a Reddit post for a relevant subreddit (choose an appropriate one based on the fund's sector/audience, e.g. a private equity, venture capital, or startup-focused community, and name it at the top) from the perspective of the fund's Managing Partner sharing a genuine perspective -- NOT a promotional post.
+
+Reddit audiences actively penalize anything that reads as marketing. Write in first person, conversational, a little informal, value-first -- share an actual opinion or observation grounded in the knowledge base, and only mention the fund briefly and naturally if it's relevant to the point, not as the point of the post. No links, no "check us out," no CTA.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+OUTPUT FORMAT
+Line 1: "Suggested subreddit: r/[name]"
+Then: a post title, then the post body. Output only the finished post -- no preamble beyond the subreddit suggestion.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the Reddit post described above.",
+        a
+      ),
+    maxTokens: 600,
+  },
+  {
+    id: "bluesky_post",
+    label: "Bluesky Post",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a single Bluesky post for a private investment fund. Similar constraints to X (under 300 characters, one clear idea, institutional but direct) -- Bluesky's audience skews early-adopter and slightly more tech/policy-native, so a marginally more precise, less broad-audience framing than an X post is appropriate.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+OUTPUT FORMAT
+Output only the finished post text -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the Bluesky post described above.",
+        a
+      ),
+    maxTokens: 300,
+  },
+  {
+    id: "substack_article",
+    label: "Substack / Medium Article",
+    category: "blog",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are ghostwriting a long-form Substack or Medium newsletter essay in the first-person voice of a private investment fund's Managing Partner. This is more personal and opinion-driven than a website blog post -- a market-commentary essay a sophisticated reader would actually choose to subscribe to, not a dressed-up pitch.
+
+Pick one specific, well-formed argument or observation grounded in the fund's stated thesis, market view, or investment philosophy. Do not invent market statistics or data points not present in the knowledge base -- where you'd want a supporting data point and don't have one, make the argument through reasoning instead, not fabricated evidence.
+
+STRUCTURE
+- A specific, opinionated headline (not generic)
+- An opening that states a clear point of view quickly
+- 4-6 body sections developing the argument, each earning its place
+- A closing section that ties back to how the fund's own strategy reflects this view, without turning into a pitch
+
+Target length: 1200-1600 words. First-person, direct, confident -- consistent with the fund's stated communication style.
+
+OUTPUT FORMAT
+Headline, then the full essay with subheadings. Output only the finished essay -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the complete long-form Substack/Medium essay described above.",
+        a
+      ),
+    maxTokens: 3000,
+  },
+  {
+    id: "lead_magnet",
+    label: "Lead Magnet",
+    category: "lead_magnet",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Create a downloadable lead-magnet asset for a private investment fund's website -- a short guide, checklist, or framework document offered in exchange for an investor's contact information. The content must be genuinely useful on its own, not a thinly disguised pitch -- the fund's positioning should come through implicitly via the quality and specificity of the content, not through direct selling.
+
+Choose a topic grounded in the fund's stated expertise or market thesis (e.g. a framework for evaluating opportunities in the fund's sector) -- do not invent statistics or claims not present in the knowledge base.
+
+STRUCTURE
+1. Title -- specific and benefit-driven, not generic
+2. Short intro (2-3 sentences) framing why this matters to the reader
+3. 3-5 substantive content sections (a framework, checklist, or set of principles) -- this should be the bulk of the document and should stand alone as useful
+4. A brief closing section connecting the content back to the fund, with one soft CTA (e.g. "if this resonates, we'd welcome a conversation")
+
+OUTPUT FORMAT
+Clear title and section headers. Output only the finished lead magnet content -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Create the complete lead magnet content described above.",
+        a
+      ),
+    maxTokens: 3000,
+  },
+  {
+    id: "seo_page_copy",
+    label: "SEO Page Copy",
+    category: "seo",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Produce a complete SEO metadata and on-page copy package for one page of a private investment fund's website (choose the homepage as the target page unless context suggests otherwise).
+
+Do not invent statistics or claims not present in the knowledge base. Keywords should be grounded in the fund's actual stated sector, geography, and strategy -- not generic finance terms with no connection to the fund's positioning.
+
+OUTPUT FORMAT (in this exact order)
+1. Page Title Tag -- under 60 characters
+2. Meta Description -- under 155 characters, includes a clear value proposition
+3. Target Keywords -- 5-8 keywords/phrases the page should be built around, most important first
+4. H1 -- the on-page main heading
+5. Body Copy -- 200-350 words of on-page copy naturally incorporating the target keywords without keyword-stuffing, matching the fund's institutional tone
+6. Image Alt-Text Suggestions -- 3-4 suggested alt-text lines for likely page images (hero image, team photo, etc.)
+
+Output only the finished package in the format above -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Produce the complete SEO page package described above.",
+        a
+      ),
+    maxTokens: 1200,
+  },
+  {
+    id: "google_business_profile",
+    label: "Google Business Profile",
+    category: "seo",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write Google Business Profile listing content for a private investment fund's management company.
+
+Do not invent an address, phone number, or hours -- use "[INSERT]" placeholders for any required field not present in the knowledge base.
+
+OUTPUT FORMAT
+1. Business Description -- under 750 characters, institutional tone, states what the firm does and its focus clearly
+2. Short Tagline -- one line, under 10 words
+3. Suggested Business Category -- the closest-fit Google Business category
+4. Suggested Attributes/Services -- 3-5 short service/attribute tags appropriate for a private investment firm listing
+
+Output only the finished content in the format above -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the Google Business Profile listing content described above.",
+        a
+      ),
+    maxTokens: 500,
+  },
+  {
+    id: "ai_seo_geo_content",
+    label: "AI SEO / GEO Content",
+    category: "seo",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a short FAQ-style content block optimized for how AI search engines and assistants (e.g. AI-generated search summaries, chat-based search) surface and quote information -- sometimes called "GEO" (generative engine optimization). The goal is content that is clear, factual, and easily extractable as a direct quote or citation, not persuasive marketing copy.
+
+Write each answer as a clear, self-contained, factual statement a language model could quote directly and accurately -- avoid vague marketing language, avoid burying the answer in a long preamble, and never state anything not present in the knowledge base as fact.
+
+STRUCTURE
+Produce 6-8 question-and-answer pairs covering the questions a prospective investor or an AI search assistant would most plausibly ask about the fund, such as: What is [Fund Name]? What does [Fund Name] invest in? What stage/geography does [Fund Name] focus on? Who leads [Fund Name]? What makes [Fund Name] different? How can someone learn more about [Fund Name]?
+
+Each answer: 1-3 sentences, direct, factual, no hedging or filler.
+
+OUTPUT FORMAT
+Q: [question]
+A: [answer]
+...repeated for each pair. Output only the finished Q&A content -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the AI-search-optimized FAQ content described above.",
+        a
+      ),
+    maxTokens: 1500,
+  },
+  {
+    id: "webinar_qa_prep",
+    label: "Webinar Q&A Prep",
+    category: "webinar",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Prepare an anticipated investor Q&A document for the fund's principals to use ahead of a live webinar or investor call -- likely questions from prospective LPs, paired with suggested talking-point answers.
+
+Ground every anticipated question and answer in what the knowledge base actually documents about investor objections, motivations, and the fund's positioning -- do not invent statistics or performance claims in the answers.
+
+STRUCTURE
+Organize into 3-4 categories (e.g. Strategy & Market, Track Record & Team, Fund Terms & Structure, Risk & Downside Protection). For each category, include 3-5 likely questions with a suggested talking-point answer (2-4 sentences each, not a scripted paragraph to read verbatim -- these are talking points, not a script).
+
+Include the fund's known primary objection (track record length, if documented) explicitly with its suggested reframe.
+
+OUTPUT FORMAT
+Organized by category with clear headers, question in bold followed by the suggested answer. Output only the finished document -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Prepare the anticipated Q&A document described above.",
+        a
+      ),
+    maxTokens: 2000,
+  },
+  {
+    id: "press_release",
+    label: "Press Release",
+    category: "press",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Draft a standard-format press release for a private investment fund, using the fund's current fundraising status (e.g. target fund size and anticipated first close, if documented) as the news hook -- framed accurately (e.g. "targeting a EUR X first close," not claiming a close has already happened unless the knowledge base confirms it).
+
+Do not invent quotes beyond a single attributed quote from the named Managing Partner/principal (only if a name is documented), and do not invent statistics, dates, or figures not present in the knowledge base.
+
+STRUCTURE
+1. Headline -- clear, factual, not hype-driven
+2. Dateline -- "[CITY], [DATE] --" with placeholders for city/date if not documented
+3. Lead paragraph -- the core news in 2-3 sentences, answering who/what/why-it-matters
+4. Body -- 2-3 paragraphs of supporting detail and context, including one attributed quote if a named principal is available
+5. Boilerplate -- a standard "About [Fund]" paragraph
+6. Media Contact -- "[INSERT MEDIA CONTACT DETAILS]"
+
+OUTPUT FORMAT
+Output only the finished press release in the structure above -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Draft the press release described above.",
+        a
+      ),
+    maxTokens: 800,
+  },
+  {
+    id: "event_landing_page_rsvp",
+    label: "Event Landing Page / RSVP Copy",
+    category: "event",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write landing page copy for a fund-hosted investor event (e.g. an LP update webinar or an in-person gathering tied to the fund's stated event cadence) -- copy that could be handed directly to a designer/developer to build the page, plus RSVP form copy.
+
+Do not invent a specific event date, location, or speaker roster not present in the knowledge base -- use "[INSERT DATE]" / "[INSERT LOCATION]" placeholders where needed, and only name speakers/principals actually documented.
+
+STRUCTURE
+1. Event Header -- event title, format (virtual/in-person), placeholder date/time
+2. What to Expect -- 3-4 sentences on what attendees will learn or discuss, grounded in the fund's stated strategy/thesis
+3. Who Should Attend -- grounded in the fund's stated target investor profile
+4. Speakers -- only principals actually documented, with a one-line description each
+5. RSVP Form -- field list (Name, Email, Firm/Family Office, Investor Type) and a submit button label
+6. Confirmation Copy -- a short "you're registered" message
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished copy -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the complete event landing page and RSVP form copy described above.",
+        a
+      ),
+    maxTokens: 2000,
+  },
+  {
+    id: "webinar_talking_points",
+    label: "Webinar Talking Points",
+    category: "webinar",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write speaker talking points for the fund's principal(s) to present during a live webinar -- bullet-point notes to speak from, not full slide content or a script to read verbatim. This complements a slide deck; it does not replace one.
+
+Do not invent statistics or claims not present in the knowledge base.
+
+STRUCTURE
+Organize into a natural webinar flow (5-7 sections, e.g. Welcome & Framing, Market Context, Strategy Overview, Differentiators, Q&A Transition, Close). For each section: a short header, then 3-5 concise talking-point bullets (phrases and cues, not full sentences to read aloud) plus one suggested natural transition line into the next section.
+
+OUTPUT FORMAT
+Organized by section with clear headers and bulleted talking points. Output only the finished talking points -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the speaker talking points described above.",
+        a
+      ),
+    maxTokens: 2000,
+  },
+  {
+    id: "event_email_content",
+    label: "Event Email Content",
+    category: "event",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a short sequence of promotional emails for a fund-hosted investor event: an initial invite, a reminder, and a post-event follow-up (3 emails total).
+
+Do not invent a specific event date, location, or attendance figures not present in the knowledge base -- use "[INSERT DATE]" placeholders where needed. Match the fund's stated communication style -- founder-led, personalized, not mass-campaign in tone, consistent with how the fund says it actually conducts outreach.
+
+STRUCTURE
+For each of the 3 emails, output a Subject line followed by the email body (under 150 words each):
+1. Invite -- introduces the event and why it's relevant to the recipient
+2. Reminder -- short, sent closer to the event date
+3. Post-Event Follow-Up -- thanks attendees, offers next steps (e.g. a follow-up conversation or materials)
+
+OUTPUT FORMAT
+Three clearly labeled emails (Email 1: Invite / Email 2: Reminder / Email 3: Follow-Up), each with Subject + body. Output only the finished emails -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Write the complete event email sequence described above.",
+        a
+      ),
+    maxTokens: 1500,
+  },
+
 ];
 
 export function getAssetTemplate(id: string) {
@@ -678,3 +1213,12 @@ export function allFoundationalApproved(
     assets.some((a) => a.asset_key === id && a.approval_status === "approved")
   );
 }
+
+// Ordered phase metadata for grouping marketing-tier assets in the UI.
+// 3b/3c are defined for future use but have no assets yet.
+export const MARKETING_PHASES: { code: string; label: string }[] = [
+  { code: "2", label: "Phase 2 — Fundraising & Legal" },
+  { code: "3a", label: "Phase 3A — Marketing Content" },
+  { code: "3b", label: "Phase 3B — Sales Enablement" },
+  { code: "3c", label: "Phase 3C — Video & Audio" },
+];

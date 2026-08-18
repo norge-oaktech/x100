@@ -6,6 +6,7 @@ import {
   ASSET_TEMPLATES,
   allFoundationalApproved,
   isRequiredFoundational,
+  MARKETING_PHASES,
   type AssetTemplate,
 } from "@/config/assets";
 import type { GeneratedAsset } from "@/types/database";
@@ -255,6 +256,13 @@ export function GenerateAssetPanel({
   const foundationalApproved = allFoundationalApproved(initialAssets);
   const anyFoundationalGenerated = foundationalTemplates.some((t) => assetsByKey.has(t.id));
 
+  // Only include phases that actually have assets defined (3b/3c are empty
+  // until those phases are built).
+  const phaseGroups = MARKETING_PHASES.map((phase) => ({
+    phase,
+    templates: marketingTemplates.filter((t) => t.phase === phase.code),
+  })).filter((g) => g.templates.length > 0);
+
   function callApi(body: Record<string, unknown>, endpoint: string) {
     setError(null);
     startTransition(async () => {
@@ -392,7 +400,7 @@ export function GenerateAssetPanel({
                 ? !onboardingComplete
                   ? "Locked — onboarding not yet complete"
                   : "Locked — waiting on required foundational approvals"
-                : `${marketingTemplates.length} assets unlocked`}
+                : `${marketingTemplates.length} assets unlocked across ${phaseGroups.length} phases`}
             </div>
           </div>
           {locked && <span className="badge b-draft">Locked</span>}
@@ -402,9 +410,11 @@ export function GenerateAssetPanel({
           <div className="section-block-body">
             <div className="locked-summary">
               <span className="locked-summary-text">
-                {marketingTemplates.length} marketing assets (website, landing page,
-                decks, and more) will unlock once all {requiredTotal} required
-                foundational documents above are approved.
+                {marketingTemplates.length} marketing assets across{" "}
+                {phaseGroups.length} phases (fundraising &amp; legal docs,
+                website, social, and more) will unlock once all{" "}
+                {requiredTotal} required foundational documents above are
+                approved.
               </span>
               <button
                 className="btn btn-ghost btn-xs"
@@ -414,46 +424,58 @@ export function GenerateAssetPanel({
               </button>
             </div>
             {showLockedDetails && (
-              <div style={{ display: "flex", flexDirection: "column", gap: 14, marginTop: 14 }}>
-                {marketingTemplates.map((template) => {
-                  const existing = assetsByKey.get(template.id);
-                  return (
-                    <AssetCard
-                      key={template.id}
-                      template={template}
-                      existing={existing}
-                      isGenerating={false}
-                      disabled={true}
-                      disabledReason={
-                        !onboardingComplete
-                          ? "Onboarding must be complete before this can be generated."
-                          : "Locked until the required foundational documents are approved."
-                      }
-                      onGenerate={() => handleGenerate(template.id)}
-                    />
-                  );
-                })}
+              <div style={{ marginTop: 14 }}>
+                {phaseGroups.map(({ phase, templates }) => (
+                  <div key={phase.code} style={{ marginBottom: 20 }}>
+                    <div className="section-label">{phase.label}</div>
+                    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                      {templates.map((template) => {
+                        const existing = assetsByKey.get(template.id);
+                        return (
+                          <AssetCard
+                            key={template.id}
+                            template={template}
+                            existing={existing}
+                            isGenerating={false}
+                            disabled={true}
+                            disabledReason={
+                              !onboardingComplete
+                                ? "Onboarding must be complete before this can be generated."
+                                : "Locked until the required foundational documents are approved."
+                            }
+                            onGenerate={() => handleGenerate(template.id)}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         ) : (
           <div className="section-block-body">
-            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-              {marketingTemplates.map((template) => {
-                const existing = assetsByKey.get(template.id);
-                const isGeneratingThis = isPending && activeKey === template.id;
-                return (
-                  <AssetCard
-                    key={template.id}
-                    template={template}
-                    existing={existing}
-                    isGenerating={isGeneratingThis}
-                    disabled={false}
-                    onGenerate={() => handleGenerate(template.id)}
-                  />
-                );
-              })}
-            </div>
+            {phaseGroups.map(({ phase, templates }, i) => (
+              <div key={phase.code} style={{ marginBottom: i === phaseGroups.length - 1 ? 0 : 20 }}>
+                <div className="section-label">{phase.label}</div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                  {templates.map((template) => {
+                    const existing = assetsByKey.get(template.id);
+                    const isGeneratingThis = isPending && activeKey === template.id;
+                    return (
+                      <AssetCard
+                        key={template.id}
+                        template={template}
+                        existing={existing}
+                        isGenerating={isGeneratingThis}
+                        disabled={false}
+                        onGenerate={() => handleGenerate(template.id)}
+                      />
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
