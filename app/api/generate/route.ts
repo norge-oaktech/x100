@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
+import { generateImages } from "@/lib/openai/generateImage";
+import { buildDefaultImagePrompt } from "@/lib/assets/buildImagePrompt";
 import type { GeneratedAsset } from "@/types/database";
 
 export async function POST(request: Request) {
@@ -112,6 +114,40 @@ export async function POST(request: Request) {
       .update({ status: "generating", updated_at: new Date().toISOString() })
       .eq("id", projectId)
       .eq("status", "onboarding_complete");
+
+    // For image-capable assets, generate one default image automatically
+    // alongside the text — one "Generate" click produces both. This is
+    // best-effort: an image failure here does NOT fail the text generation,
+    // which already succeeded. The custom-prompt "Regenerate" control in
+    // the UI lets someone retry or redirect the image afterward regardless.
+    if (template.supportsImage) {
+      try {
+        const imagePrompt = buildDefaultImagePrompt(template, onboarding.answers);
+        const [base64Image] = await generateImages(
+          imagePrompt,
+          1,
+          template.imageSize ?? "1024x1024"
+        );
+        const buffer = Buffer.from(base64Image, "base64");
+        const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.png`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("asset-images")
+          .upload(storagePath, buffer, { contentType: "image/png" });
+
+        if (!uploadError) {
+          await supabase.from("asset_files").insert({
+            generated_asset_id: assetRow.id,
+            format: "png",
+            storage_path: storagePath,
+          });
+        }
+      } catch {
+        // Swallow — text generation already succeeded and was returned to
+        // the user; a failed default image just means the Images section
+        // will show empty with the option to generate manually.
+      }
+    }
 
     return NextResponse.json({ success: true, assetId: assetRow.id, content });
   } catch (err) {

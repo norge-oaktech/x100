@@ -61,6 +61,13 @@ function ImageSubsection({
         IMAGES
       </div>
 
+      {images.length === 0 && (
+        <p className="tf" style={{ fontSize: 11.5, marginBottom: 10 }}>
+          No image yet — regenerate below, or click Regenerate on the card
+          above to also refresh the text.
+        </p>
+      )}
+
       {images.length > 0 && (
         <div
           style={{
@@ -99,7 +106,7 @@ function ImageSubsection({
       <textarea
         value={customPrompt}
         onChange={(e) => setCustomPrompt(e.target.value)}
-        placeholder="Add custom direction for the image (optional) — leave blank to use the default brand-consistent prompt"
+        placeholder="Want something different? Describe the change (optional) — e.g. 'more blue tones' or 'simpler composition' — then regenerate."
         className="field-input"
         style={{ width: "100%", minHeight: 60, marginBottom: 8 }}
       />
@@ -122,11 +129,7 @@ function ImageSubsection({
           disabled={isGenerating}
           onClick={() => onGenerateImages(customPrompt, count)}
         >
-          {isGenerating
-            ? "Generating…"
-            : images.length > 0
-            ? "⚡ Regenerate images"
-            : "⚡ Generate images"}
+          {isGenerating ? "Generating…" : "⚡ Regenerate image"}
         </button>
       </div>
     </div>
@@ -195,6 +198,19 @@ function AssetCard({
               }}
             >
               {required ? "· required" : "· optional"}
+            </span>
+          )}
+          {template.supportsImage && (
+            <span
+              style={{
+                fontFamily: "var(--font-body)",
+                fontWeight: 400,
+                color: "var(--text-faint)",
+                fontSize: 10.5,
+                marginLeft: 2,
+              }}
+            >
+              · includes image
             </span>
           )}
         </div>
