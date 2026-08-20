@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { DeleteClientButton } from "../../DeleteClientButton";
 import type { Client, Project } from "@/types/database";
 
 const STATUS_LABEL: Record<string, string> = {
@@ -53,9 +54,20 @@ export default async function ClientDetailPage({
         <span className="current">{client.name}</span>
       </div>
 
-      <div className="page-title">{client.name}</div>
-      <div className="page-sub">
-        Client since {new Date(client.created_at).toLocaleDateString()}
+      <div className="fb">
+        <div>
+          <div className="page-title" style={{ marginBottom: 0 }}>{client.name}</div>
+          <div className="page-sub">
+            Client since {new Date(client.created_at).toLocaleDateString()}
+          </div>
+        </div>
+        <DeleteClientButton
+          clientId={client.id}
+          clientName={client.name}
+          projectCount={projects?.length ?? 0}
+          redirectTo="/dashboard/clients"
+          className="btn btn-danger btn-sm"
+        />
       </div>
 
       <div className="section-label">Projects</div>

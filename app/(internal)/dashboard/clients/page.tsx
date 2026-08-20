@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { DeleteClientButton } from "../DeleteClientButton";
 import type { Client, Project } from "@/types/database";
 
 export default async function ClientsPage() {
@@ -45,6 +46,7 @@ export default async function ClientsPage() {
                 <th>Name</th>
                 <th>Projects</th>
                 <th>Created</th>
+                <th></th>
               </tr>
             </thead>
             <tbody>
@@ -57,6 +59,13 @@ export default async function ClientsPage() {
                   </td>
                   <td className="tm">{projectCountByClient.get(c.id) ?? 0}</td>
                   <td className="tm">{new Date(c.created_at).toLocaleDateString()}</td>
+                  <td>
+                    <DeleteClientButton
+                      clientId={c.id}
+                      clientName={c.name}
+                      projectCount={projectCountByClient.get(c.id) ?? 0}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>

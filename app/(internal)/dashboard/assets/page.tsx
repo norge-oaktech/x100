@@ -5,6 +5,7 @@ import {
   REQUIRED_FOUNDATIONAL_ASSET_IDS,
   getAssetTemplate,
 } from "@/config/assets";
+import { DeleteClientButton } from "../DeleteClientButton";
 import type { Project, Client, GeneratedAsset } from "@/types/database";
 
 const MARKETING_ASSET_COUNT = ASSET_TEMPLATES.filter((t) => t.tier === "marketing").length;
@@ -14,9 +15,18 @@ export default async function AssetsOverviewPage() {
 
   const { data: projects } = await supabase
     .from("projects")
-    .select("id, status, created_at, clients(name)")
+    .select("id, client_id, status, created_at, clients(name)")
     .order("created_at", { ascending: false })
-    .returns<(Pick<Project, "id" | "status" | "created_at"> & { clients: Pick<Client, "name"> | null })[]>();
+    .returns<
+      (Pick<Project, "id" | "client_id" | "status" | "created_at"> & {
+        clients: Pick<Client, "name"> | null;
+      })[]
+    >();
+
+  const projectCountByClient = new Map<string, number>();
+  for (const p of projects ?? []) {
+    projectCountByClient.set(p.client_id, (projectCountByClient.get(p.client_id) ?? 0) + 1);
+  }
 
   const { data: allGenerated } = await supabase
     .from("generated_assets")
@@ -65,8 +75,15 @@ export default async function AssetsOverviewPage() {
               <div key={p.id} className="card-sm">
                 <div className="fb">
                   <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>
-                      {p.clients?.name ?? "Unnamed client"}
+                    <div className="fac gap8">
+                      <span style={{ fontSize: 13, fontWeight: 500 }}>
+                        {p.clients?.name ?? "Unnamed client"}
+                      </span>
+                      <DeleteClientButton
+                        clientId={p.client_id}
+                        clientName={p.clients?.name ?? "Unnamed client"}
+                        projectCount={projectCountByClient.get(p.client_id) ?? 1}
+                      />
                     </div>
                     <div className="tf" style={{ fontSize: 11, marginTop: 2 }}>
                       Created {new Date(p.created_at).toLocaleDateString()}
