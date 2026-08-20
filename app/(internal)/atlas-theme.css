@@ -616,3 +616,87 @@
   font-size: 12.5px;
   color: var(--text-muted);
 }
+
+/* ── APP SHELL (persistent sidebar) ── */
+.atlas-theme .shell {
+  display: flex;
+  min-height: 100vh;
+}
+.atlas-theme .sidebar {
+  width: 220px;
+  flex-shrink: 0;
+  background: var(--bg-surface);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+.atlas-theme .sidebar-brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 8px 20px;
+}
+.atlas-theme .sidebar-brand-mark {
+  width: 26px;
+  height: 26px;
+  border-radius: 7px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  color: #fff;
+  background: linear-gradient(135deg, #5b7fff 0%, #a78bfa 100%);
+  font-family: var(--font-display);
+  flex-shrink: 0;
+}
+.atlas-theme .sidebar-brand-text {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+}
+.atlas-theme .sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+}
+.atlas-theme .nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: var(--r-sm);
+  font-size: 13px;
+  color: var(--text-secondary);
+  transition: background 0.1s, color 0.1s;
+}
+.atlas-theme .nav-item:hover {
+  background: var(--bg-surface-raised);
+  color: var(--text-primary);
+}
+.atlas-theme .nav-item.active {
+  background: var(--accent-glow);
+  color: var(--accent);
+  font-weight: 500;
+}
+.atlas-theme .nav-icon {
+  width: 16px;
+  text-align: center;
+  flex-shrink: 0;
+  font-size: 13px;
+}
+.atlas-theme .sidebar-footer {
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+.atlas-theme .shell-main {
+  flex: 1;
+  min-width: 0;
+  overflow-x: hidden;
+}

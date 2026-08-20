@@ -176,6 +176,19 @@ Seven assets now support an optional accompanying AI-generated image, using Open
 
 **Not built:** actual video or voice generation (Phase 3C) — this covers static images only.
 
+## Navigation shell (Clients, Approvals, Settings)
+
+Added a persistent sidebar to all `/dashboard/**` pages (not `/login`, which stays a standalone screen), matching the "Project Atlas" reference spec's navigation pattern where it made sense without overbuilding:
+
+- **Dashboard** — unchanged, the existing project list/stats
+- **Clients** (new) — list of all clients with project counts; click through to a client detail page listing their projects. Uses the existing `clients` table, no new data model.
+- **Approvals** (new) — a single queue across *every* project showing everything with `approval_status = 'pending'`, with inline Approve/Reject and a "Preview" toggle to read the content without leaving the page. This is the same review action as before (`/api/assets/review`), just aggregated instead of per-project — should be the fastest path for whoever's approving day to day.
+- **Settings** (new) — read-only: shows the current `APPROVER_EMAILS` configuration and which AI providers/services this deployment uses. Intentionally minimal — no fake toggles for things that aren't actually configurable yet.
+
+**What I did NOT add**, since the client's own spec called for them but building them now would mean either faking functionality or a much bigger change: **Workflows** (formal multi-stage pipeline), **Deliverables** (versioned entity separate from `generated_assets`), and **Prompt Library** (DB-backed, UI-editable prompts — prompts stay in `config/assets.ts` per your earlier decision). Nav only links to pages that are real; no dead-end items.
+
+**Known gap surfaced while building this:** creating a new project only ever creates a brand-new client row, even if you type a name matching an existing client exactly — there's no "pick an existing client" dropdown yet. Worth fixing if the Clients page reveals duplicate client rows in practice; flagging now rather than fixing silently since it wasn't part of what was asked this round.
+
 ## What I need from you next
 
 - Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).

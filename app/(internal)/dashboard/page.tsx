@@ -37,21 +37,14 @@ export default async function DashboardPage() {
 
   return (
     <main className="scroll mx-auto max-w-4xl">
-      <div className="fb">
-        <div>
-          <div className="page-title">Projects</div>
-          <div className="page-sub" style={{ marginBottom: 0 }}>
-            {new Date().toLocaleDateString("en-US", {
-              weekday: "long",
-              year: "numeric",
-              month: "long",
-              day: "numeric",
-            })}
-          </div>
-        </div>
-        <form action="/auth/signout" method="post">
-          <button className="btn btn-ghost btn-sm">Sign out</button>
-        </form>
+      <div className="page-title">Projects</div>
+      <div className="page-sub">
+        {new Date().toLocaleDateString("en-US", {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+        })}
       </div>
 
       <div
