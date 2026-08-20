@@ -91,11 +91,23 @@ export async function POST(request: Request) {
   }
 
   try {
-    const content = await generateAssetContent(
+    let content = await generateAssetContent(
       template.systemPrompt,
       userPrompt,
       template.maxTokens
     );
+
+    // Safety net for HTML assets: Claude sometimes wraps code in a markdown
+    // fence despite explicit instructions not to. A stray ```html at the
+    // top would break a direct paste into GHL's Custom HTML element, so
+    // strip a leading/trailing fence if present.
+    if (template.outputFormat === "html") {
+      content = content
+        .trim()
+        .replace(/^```(?:html)?\s*\n?/i, "")
+        .replace(/\n?```\s*$/i, "")
+        .trim();
+    }
 
     await supabase
       .from("generated_assets")

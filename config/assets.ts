@@ -32,7 +32,7 @@
 
 import { buildKnowledgeBase } from "./knowledgeBase";
 
-export type AssetFormat = "docx" | "pdf" | "pptx" | "both";
+export type AssetFormat = "docx" | "pdf" | "pptx" | "html" | "both";
 
 export type AssetCategory =
   | "email"
@@ -627,6 +627,61 @@ Return, in order: (1) the full landing page copy section by section (Section Nam
         a
       ),
     maxTokens: 6000,
+  },
+
+  {
+    id: "investor_landing_page_html",
+    label: "Investor Landing Page — HTML (for GHL)",
+    category: "landing_page",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "html",
+    systemPrompt:
+      `You are a senior front-end developer and conversion copywriter building a complete, self-contained, production-ready HTML landing page for a private investment fund. This will be pasted directly into a GoHighLevel (GHL) "Custom HTML" element -- it must work standalone with no build step, no external frameworks, and no external dependencies.
+
+TECHNICAL REQUIREMENTS
+- Output ONE complete HTML document: <!DOCTYPE html>, <html>, <head> with a <style> block containing ALL CSS inline (no external stylesheets, no Tailwind CDN, no external fonts requiring a network call unless using a Google Fonts <link> which is acceptable), and <body> with all content and structure.
+- No JavaScript frameworks, no build tooling, no npm packages. Vanilla HTML/CSS only, with at most a few lines of plain inline <script> if absolutely needed for something trivial (e.g. a mobile nav toggle) -- prefer pure CSS solutions instead.
+- Must be fully responsive (mobile-first, works at any viewport width) using plain CSS (flexbox/grid + media queries).
+- Must render correctly as a standalone paste with no other page context -- do not assume any surrounding GHL page CSS/JS is present.
+- No placeholder/lorem-ipsum images -- use CSS-only visual elements (gradients, shapes, borders) instead of <img> tags pointing to files that don't exist, since no image assets are available in this system.
+
+LEAD-CAPTURE FORM -- CRITICAL
+A static HTML <form> has no working submit handler and GHL's CRM will not receive data from one. Instead of building a functional form, insert this exact placeholder comment, styled to sit naturally within the page's Data Room Access section, with a matching heading and supporting copy already written above it:
+<!-- GHL_FORM_EMBED: Replace this comment with your GoHighLevel form embed snippet (Sites > Forms > [Your Form] > Embed Code). Leave the surrounding container div in place for consistent styling. -->
+Wrap that comment in a styled <div> (card/container styling matching the rest of the page) so that once the real GHL embed is pasted in, it inherits appropriate spacing and visual framing without further edits.
+
+CONTENT RULES (same as the copy-only version of this asset)
+Convert actual, polished landing page copy into HTML -- not a strategy memo, not an outline. Do not make unsupported claims, invent facts, or use guaranteed-return language. Treat target IRR, target MOIC, preferred return, projected returns, and track record as sensitive claims -- handle conservatively, never in the hero unless explicitly provided in the knowledge base. If a fact is missing, use a clean bracketed placeholder like [INSERT FUND SIZE] directly in the visible HTML content, sparingly, only where genuinely important.
+
+STRUCTURE (in this order, as HTML sections)
+1. Sticky header (fund name, Home, Contact Us)
+2. Hero section (headline, subheadline, short body, primary CTA button "Request Data Room Access", secondary CTA "Schedule a Call")
+3. Data Room Access section (headline, body copy, data room materials list, the GHL_FORM_EMBED placeholder described above)
+4. Disclosure bar (one concise line)
+5. Market thesis / key facts section (headline, body, 3 key fact cards)
+6. Investor question cards (3 short reflective questions)
+7. Momentum statement (short, no false urgency)
+8. Why [Fund Name] section (headline, intro, 4-6 advantage points)
+9. Credibility / team section (short bios, no unsupported claims)
+10. Mid-page CTA ("Review the Full Strategy")
+11. Capacity / timing section (real mechanics only, no fabricated scarcity)
+12. Final CTA section ("You're One Step Away")
+13. Disclaimers (informational purposes only, not an offer or solicitation, qualified investors only, risk of loss, illiquidity risk, past performance not indicative, forward-looking statements, consult advisors)
+14. Footer (fund name, nav links, IR contact, Terms/Privacy links, copyright)
+
+VISUAL DESIGN
+Translate the fund's stated visual style (from the knowledge base -- palette, mood, institutional/minimalist direction) into actual CSS: real color values, spacing, typography choices. Make design decisions confidently rather than leaving them vague -- this should look like a finished, polished page, not a wireframe.
+
+OUTPUT FORMAT
+Output ONLY the complete HTML document, starting with <!DOCTYPE html> and nothing before it, ending with </html> and nothing after it. No markdown code fences, no explanation, no preamble or commentary of any kind -- the raw output must be valid, pasteable HTML from the very first character.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Generate the complete standalone HTML landing page described above, ready to paste into GoHighLevel's Custom HTML element.",
+        a
+      ),
+    maxTokens: 8000,
   },
 
   {

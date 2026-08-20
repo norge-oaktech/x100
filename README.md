@@ -189,6 +189,18 @@ Added a persistent sidebar to all `/dashboard/**` pages (not `/login`, which sta
 
 **Known gap surfaced while building this:** creating a new project only ever creates a brand-new client row, even if you type a name matching an existing client exactly — there's no "pick an existing client" dropdown yet. Worth fixing if the Clients page reveals duplicate client rows in practice; flagging now rather than fixing silently since it wasn't part of what was asked this round.
 
+## HTML Landing Page (Lovable replacement, for GHL)
+
+New asset: **Investor Landing Page — HTML (for GHL)**, `investor_landing_page_html`, alongside the existing plain-copy version (kept — some situations still just need reference text, not code).
+
+- Claude generates a complete, self-contained HTML document — inline CSS, no build step, no external framework, mobile-responsive — ready to paste directly into GoHighLevel's **Custom HTML** page element.
+- **Lead capture is the one manual step:** a static HTML form has nowhere to send data, and GHL's CRM only receives submissions from GHL-native forms. The generated HTML includes a clearly marked placeholder comment (`<!-- GHL_FORM_EMBED: ... -->`) inside a pre-styled container exactly where the form should go — build the real form in GHL (a couple of minutes), grab its embed snippet, and drop it into that spot.
+- Copy button already works for this — it copies the raw HTML string, ready to paste as-is.
+- Added a safety net in the generate route that strips a stray ```` ```html ```` code fence if Claude adds one despite instructions not to (a known LLM habit that would otherwise break a direct paste).
+- This replaces the earlier idea of connecting Lovable — no new account, API key, or vendor needed for this one.
+
+**Decided against integrating:** Lovable (replaced by the above), Vapi (its job is placing live phone calls, not generating content — only relevant if you want the app to actually dial numbers, which is a different feature with its own compliance considerations), and Perplexity (only needed if AI SEO/GEO content should be grounded in live web search — Claude's own API has a native web search tool that covers the same need without a second vendor; let me know if you want that turned on).
+
 ## What I need from you next
 
 - Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).
