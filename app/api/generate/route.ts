@@ -122,7 +122,7 @@ export async function POST(request: Request) {
     // the UI lets someone retry or redirect the image afterward regardless.
     if (template.supportsImage) {
       try {
-        const imagePrompt = buildDefaultImagePrompt(template, onboarding.answers);
+        const imagePrompt = buildDefaultImagePrompt(template, onboarding.answers, content);
         const [base64Image] = await generateImages(
           imagePrompt,
           1,

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
 
   const { data: asset } = await supabase
     .from("generated_assets")
-    .select("id, project_id, asset_key, status")
+    .select("id, project_id, asset_key, status, content")
     .eq("id", generatedAssetId)
     .maybeSingle();
 
@@ -64,12 +64,34 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
-    prompt = buildDefaultImagePrompt(template, onboarding.answers);
+    // Ground the default prompt in the actual generated post copy, not a
+    // generic concept disconnected from what the post actually says.
+    prompt = buildDefaultImagePrompt(template, onboarding.answers, asset.content);
   }
 
   const imageCount = Math.min(Math.max(count ?? 1, 1), 4); // UI caps at 4 per batch
 
   try {
+    // "Regenerate" means replace, not append — remove any existing images
+    // for this asset (both the storage objects and the DB rows) before
+    // generating the new set, so the gallery always reflects only the
+    // latest generation.
+    const { data: existingFiles } = await supabase
+      .from("asset_files")
+      .select("id, storage_path")
+      .eq("generated_asset_id", asset.id)
+      .eq("format", "png");
+
+    if (existingFiles && existingFiles.length > 0) {
+      await supabase.storage
+        .from("asset-images")
+        .remove(existingFiles.map((f) => f.storage_path));
+      await supabase
+        .from("asset_files")
+        .delete()
+        .in("id", existingFiles.map((f) => f.id));
+    }
+
     const base64Images = await generateImages(
       prompt,
       imageCount,
