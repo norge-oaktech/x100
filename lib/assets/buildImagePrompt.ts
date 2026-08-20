@@ -8,37 +8,40 @@ function val(answers: OnboardingAnswers, fieldId: string, fallback = ""): string
   return Array.isArray(v) ? v.join(", ") : v;
 }
 
-// A rotating set of single, cohesive visual concepts. Picking ONE concrete
-// concept and committing to it is what actually produces an engaging image
-// -- the previous version asked for "abstract composition evoking a theme,"
-// which is exactly the kind of open-ended instruction that pushes image
-// models toward generic corporate-clipart collages (dashboards, gauges,
-// office buildings, arrows, all scattered together with no single idea
-// tying them together). One clear idea, rendered well, beats five vague
-// ones combined.
+// A rotating set of single, cohesive visual concepts. Mostly editorial
+// photography featuring generic (non-identifiable) people, since that reads
+// as more engaging and human than pure abstract art -- with a couple of
+// abstract options kept in the mix for variety. Picking ONE concrete
+// concept and committing to it is what produces an engaging image; vague
+// "abstract composition evoking a theme" instructions push the model toward
+// either generic corporate-clipart collages or, as it turns out, avoiding
+// people altogether even when that wasn't the intent.
 const VISUAL_CONCEPTS = [
-  "a single large abstract sculptural form suggesting upward momentum or ascent -- like a minimalist folded-paper or origami peak catching light, photographed as a clean studio object shot",
-  "a close-up abstract composition of layered geometric planes at an angle, like architectural facades or terraced landscape contours, with strong directional light creating depth and shadow",
+  "a candid editorial-style photograph of two or three professionals in genuine, unposed conversation around a table, shot from a natural angle (not looking at camera), warm natural window light, shallow depth of field, shot on a full-frame camera with a fast prime lens",
+  "an editorial photograph of a confident professional seen from behind or in partial silhouette, looking out a large window at a city skyline, warm late-afternoon directional light, cinematic depth",
+  "a candid photograph of two colleagues reviewing a document together at a table, genuine natural expressions, shot from the side or a three-quarter angle, soft natural light, shallow depth of field",
+  "an editorial photograph of a small team walking together through a modern office corridor or lobby, natural mid-stride movement, captured candidly rather than posed, soft directional light",
+  "a single large abstract sculptural form suggesting upward momentum -- like a minimalist folded-paper or origami peak catching light, photographed as a clean studio object shot",
   "an abstract macro shot of intersecting curved lines and gradients suggesting a flow or current, rendered as a smooth 3D render with soft studio lighting",
-  "a minimalist isometric composition of a few large simple geometric solids (spheres, blocks, slabs) arranged with intentional negative space, like a piece of gallery sculpture",
-  "an abstract aerial/topographic composition of overlapping translucent layered shapes suggesting depth and structure, rendered with soft gradients and subtle grain",
 ];
 
 // Shared safety/quality guardrails appended to every image prompt regardless
-// of asset type -- image models render legible text poorly, and depicting
-// real named individuals or third-party logos is both inaccurate (the model
-// has no real photo of them) and a brand/legal risk. Also explicitly bans
-// the generic-corporate-clipart failure mode we saw in practice.
+// of asset type. Generic, non-identifiable people ARE welcome (see below) --
+// the rule is narrower than "no people": image models cannot accurately
+// render a real, specific person's likeness, so depicting one produces
+// either a generic-looking stranger mislabeled as that person, or an
+// inaccurate/uncanny result. Anonymous, natural-looking people avoid that
+// problem entirely and are good for engagement.
 const IMAGE_GUARDRAILS = `
 
 HARD RULES:
 - Depict exactly ONE cohesive visual idea, well-composed and well-lit. Do NOT create a collage, grid, or scattered arrangement of multiple small unrelated icons or symbols.
-- Explicitly avoid generic corporate-stock-art tropes: no dashboard/gauge charts, no line/bar graphs, no generic "upward arrow," no generic city-skyline silhouettes, no laptop/monitor mockups, no handshake icons, no lightbulb icons.
+- Explicitly avoid generic corporate-stock-art tropes: no dashboard/gauge charts, no line/bar graphs, no generic "upward arrow," no generic city-skyline silhouettes used as the whole subject, no laptop/monitor mockups, no handshake icons, no lightbulb icons.
+- Generic, non-identifiable people are welcome and encouraged when the concept calls for them -- unnamed, natural-looking, diverse, candid rather than posed or smiling-at-camera stock-photo style. The only restriction: never depict a specific real, named individual (e.g. a fund's actual named partner) -- always generic/anonymous people instead.
 - Do not include any legible text, words, letters, or numbers rendered in the image.
-- Do not depict any specific real, named individual.
 - Do not include any real company logos, trademarks, or copyrighted characters.
 - Use a tight, deliberate palette of 2-3 colors only, applied consistently -- not a rainbow of unrelated colors.
-- Render with genuine depth: real shadow, light direction, and material quality (paper, stone, glass, metal, etc.) rather than flat clip-art shading.`;
+- Render with genuine depth and material quality (real shadow, light direction, skin/fabric/paper/stone texture as appropriate) rather than flat clip-art shading.`;
 
 // Builds a reasonable default image prompt for an asset, grounded in the
 // fund's stated visual style preferences from onboarding. The staff member
@@ -71,5 +74,5 @@ export function buildDefaultImagePrompt(
 
 Visual concept: ${concept}.
 
-Palette and mood should reflect: ${visualStyle}, feeling ${visualsFeel}. This should look like premium, gallery-quality editorial art direction -- the kind of image a top-tier design agency would produce for an asset management firm's brand campaign, not a stock-photo library graphic.${IMAGE_GUARDRAILS}`;
+Palette and mood should reflect: ${visualStyle}, feeling ${visualsFeel}. This should look like premium, gallery-quality editorial art direction or high-end commercial photography -- the kind of image a top-tier design agency would produce for an asset management firm's brand campaign, not a stock-photo library graphic.${IMAGE_GUARDRAILS}`;
 }
