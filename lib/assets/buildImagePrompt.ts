@@ -14,7 +14,7 @@ function val(answers: OnboardingAnswers, fieldId: string, fallback = ""): string
 // real, specific person's likeness, so depicting one produces either a
 // generic-looking stranger mislabeled as that person, or an inaccurate
 // result. Anonymous, natural-looking people avoid that problem entirely.
-const IMAGE_GUARDRAILS = `
+export const IMAGE_GUARDRAILS = `
 
 HARD RULES:
 - Depict exactly ONE cohesive visual idea, well-composed and well-lit. Do NOT create a collage, grid, or scattered arrangement of multiple small unrelated icons or symbols.
@@ -81,4 +81,29 @@ ${styleLine}${IMAGE_GUARDRAILS}`;
 Create one considered, premium visual concept appropriate for an institutional investment firm's marketing material -- either a candid editorial photograph with generic non-identifiable people, or an abstract architectural/sculptural composition.
 
 ${styleLine}${IMAGE_GUARDRAILS}`;
+}
+
+// Builds an image prompt for one post within a monthly content calendar,
+// grounded in that specific post's copy/brief rather than a generic
+// concept -- same idea as buildDefaultImagePrompt, scoped to a single row
+// in a batch instead of a whole asset.
+export function buildCalendarPostImagePrompt(
+  postCopy: string,
+  imageBrief: string | undefined,
+  platform: string,
+  answers: OnboardingAnswers
+): string {
+  const visualStyle = val(answers, "preferred_visual_style", "institutional, modern, minimalist");
+  const visualsFeel = val(answers, "visuals_feel", "professional, credible");
+
+  const brief = imageBrief?.trim() || postCopy.trim().slice(0, 400);
+
+  return `A polished, premium social media graphic for a ${platform} post from an institutional investment firm.
+
+Create ONE specific visual concept reflecting this post's actual content -- not a generic or unrelated graphic:
+"""
+${brief}
+"""
+
+Palette and mood should reflect: ${visualStyle}, feeling ${visualsFeel}.${IMAGE_GUARDRAILS}`;
 }

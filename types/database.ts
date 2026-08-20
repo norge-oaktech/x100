@@ -57,7 +57,7 @@ export interface GeneratedAsset {
 export interface AssetFile {
   id: string;
   generated_asset_id: string;
-  format: "docx" | "pdf" | "png" | "pptx";
+  format: "docx" | "pdf" | "png" | "pptx" | "xlsx";
   storage_path: string;
   created_at: string;
 }

@@ -136,6 +136,47 @@ function ImageSubsection({
   );
 }
 
+function CalendarPreview({ content }: { content: string }) {
+  try {
+    const calendar = JSON.parse(content) as {
+      posts: { week: number; day: string; platform: string; copy: string; imageBrief?: string }[];
+    };
+    if (!Array.isArray(calendar.posts) || calendar.posts.length === 0) throw new Error("empty");
+
+    const byWeek = new Map<number, typeof calendar.posts>();
+    for (const post of calendar.posts) {
+      const list = byWeek.get(post.week) ?? [];
+      list.push(post);
+      byWeek.set(post.week, list);
+    }
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {[...byWeek.entries()].map(([week, posts]) => (
+          <div key={week}>
+            <div className="tf" style={{ fontSize: 10.5, marginBottom: 6 }}>
+              WEEK {week}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+              {posts.map((post, i) => (
+                <div key={i} className="card-sm">
+                  <div className="fb">
+                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{post.platform}</span>
+                    <span className="tf" style={{ fontSize: 11 }}>{post.day}</span>
+                  </div>
+                  <div className="tm" style={{ fontSize: 12.5, marginTop: 4 }}>{post.copy}</div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    return <div className="output-val">{content}</div>;
+  }
+}
+
 function DeckPreview({ content }: { content: string }) {
   try {
     const deck = JSON.parse(content) as {
@@ -342,6 +383,8 @@ function AssetCard({
             />
           ) : template.supportsDeckFile ? (
             <DeckPreview content={existing.content} />
+          ) : template.supportsCalendarFile ? (
+            <CalendarPreview content={existing.content} />
           ) : (
             <div className="output-val">{existing.content}</div>
           )}
@@ -362,20 +405,27 @@ function AssetCard({
             {copied ? "Copied!" : "Copy"}
           </button>
 
-          {template.supportsDeckFile && documents && documents.length > 0 && (
-            <a
-              href={documents[documents.length - 1].url}
-              download
-              className="btn btn-primary btn-sm"
-            >
-              ⬇ Download deck (.pptx)
-            </a>
-          )}
-          {template.supportsDeckFile && (!documents || documents.length === 0) && (
-            <span className="tf" style={{ fontSize: 11.5 }}>
-              Building .pptx file… refresh in a moment if this doesn't appear
-            </span>
-          )}
+          {(template.supportsDeckFile || template.supportsCalendarFile) &&
+            documents &&
+            documents.length > 0 && (
+              <a
+                href={documents[documents.length - 1].url}
+                download
+                className="btn btn-primary btn-sm"
+              >
+                {template.supportsDeckFile
+                  ? "⬇ Download deck (.pptx)"
+                  : "⬇ Download calendar (.xlsx)"}
+              </a>
+            )}
+          {(template.supportsDeckFile || template.supportsCalendarFile) &&
+            (!documents || documents.length === 0) && (
+              <span className="tf" style={{ fontSize: 11.5 }}>
+                {template.supportsDeckFile
+                  ? "Building .pptx file… refresh in a moment if this doesn't appear"
+                  : "Building .xlsx file with images… this can take a minute, refresh to check"}
+              </span>
+            )}
 
           {template.tier === "foundational" && (
             <>
@@ -470,6 +520,10 @@ export function GenerateAssetPanel({
     phase,
     templates: marketingTemplates.filter((t) => t.phase === phase.code),
   })).filter((g) => g.templates.length > 0);
+
+  const [activePhase, setActivePhase] = useState<string>(
+    phaseGroups[0]?.phase.code ?? "2"
+  );
 
   function callApi(body: Record<string, unknown>, endpoint: string) {
     setError(null);
@@ -675,38 +729,50 @@ export function GenerateAssetPanel({
           </div>
         ) : (
           <div className="section-block-body">
-            {phaseGroups.map(({ phase, templates }, i) => (
-              <div key={phase.code} style={{ marginBottom: i === phaseGroups.length - 1 ? 0 : 20 }}>
-                <div className="section-label">{phase.label}</div>
-                <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-                  {templates.map((template) => {
-                    const existing = assetsByKey.get(template.id);
-                    const isGeneratingThis = isPending && activeKey === template.id;
-                    const isImageGeneratingThis =
-                      isPending && !!existing && activeImageAssetId === existing.id;
-                    return (
-                      <AssetCard
-                        key={template.id}
-                        template={template}
-                        existing={existing}
-                        isGenerating={isGeneratingThis}
-                        disabled={false}
-                        onGenerate={() => handleGenerate(template.id)}
-                        images={existing ? imagesByAssetId[existing.id] : undefined}
-                        documents={existing ? documentsByAssetId[existing.id] : undefined}
-                        isImageGenerating={isImageGeneratingThis}
-                        onGenerateImages={
-                          existing
-                            ? (customPrompt, count) =>
-                                handleGenerateImages(existing.id, customPrompt, count)
-                            : undefined
-                        }
-                      />
-                    );
-                  })}
+            <div className="tab-bar" style={{ marginBottom: 16 }}>
+              {phaseGroups.map(({ phase }) => (
+                <button
+                  key={phase.code}
+                  className={`tab-item${activePhase === phase.code ? " active" : ""}`}
+                  onClick={() => setActivePhase(phase.code)}
+                >
+                  {phase.label}
+                </button>
+              ))}
+            </div>
+            {phaseGroups
+              .filter(({ phase }) => phase.code === activePhase)
+              .map(({ phase, templates }) => (
+                <div key={phase.code}>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                    {templates.map((template) => {
+                      const existing = assetsByKey.get(template.id);
+                      const isGeneratingThis = isPending && activeKey === template.id;
+                      const isImageGeneratingThis =
+                        isPending && !!existing && activeImageAssetId === existing.id;
+                      return (
+                        <AssetCard
+                          key={template.id}
+                          template={template}
+                          existing={existing}
+                          isGenerating={isGeneratingThis}
+                          disabled={false}
+                          onGenerate={() => handleGenerate(template.id)}
+                          images={existing ? imagesByAssetId[existing.id] : undefined}
+                          documents={existing ? documentsByAssetId[existing.id] : undefined}
+                          isImageGenerating={isImageGeneratingThis}
+                          onGenerateImages={
+                            existing
+                              ? (customPrompt, count) =>
+                                  handleGenerateImages(existing.id, customPrompt, count)
+                              : undefined
+                          }
+                        />
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
           </div>
         )}
       </div>

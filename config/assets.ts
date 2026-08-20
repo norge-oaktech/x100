@@ -32,7 +32,7 @@
 
 import { buildKnowledgeBase } from "./knowledgeBase";
 
-export type AssetFormat = "docx" | "pdf" | "pptx" | "html" | "both";
+export type AssetFormat = "docx" | "pdf" | "pptx" | "html" | "xlsx" | "both";
 
 export type AssetCategory =
   | "email"
@@ -87,6 +87,11 @@ export interface AssetTemplate {
   // True for assets whose content is structured slide JSON (see
   // lib/decks/buildPptx.ts) rather than free-form prose -- the generate
   // route builds a real downloadable .pptx from these automatically.
+  // True for the monthly content calendar asset, whose content is
+  // structured post JSON (see lib/calendar/buildCalendarXlsx.ts) -- the
+  // generate route builds a real downloadable .xlsx (with an image per
+  // post embedded) from this automatically.
+  supportsCalendarFile?: boolean;
   supportsDeckFile?: boolean;
 }
 
@@ -861,6 +866,39 @@ Headline, then the full article body with subheadings. Output only the finished 
         a
       ),
     maxTokens: 2000,
+  },
+  {
+    id: "social_content_calendar",
+    label: "Monthly Social Content Calendar",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "xlsx",
+    supportsCalendarFile: true,
+    systemPrompt:
+      `You are a social media strategist planning a full month of social content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post -- not read as prose -- so structure matters more than flowery writing.
+
+Plan 3-4 posts per week across 4 weeks (12-16 posts total), spread across the platforms the fund actually uses per the knowledge base (LinkedIn is typically primary for institutional funds; only include X, Facebook, Bluesky, Reddit, or TikTok if the knowledge base's stated content/social approach supports it -- do not invent platform usage not implied by the fund's stated channels).
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly across every post -- direct, institutional, no hype.
+
+Vary the posts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective posts, differentiator posts, team/operator-led posts, portfolio-relevant commentary (only if the knowledge base supports specific claims), and soft relationship-building posts. Each post's copy should be complete and ready to publish, matching normal length conventions for its platform (LinkedIn: 150-250 words; X/Bluesky: under 280 characters; Facebook: 150-200 words; Reddit: conversational, subreddit-appropriate; TikTok: a short spoken script).
+
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "posts": [
+    { "week": 1, "day": "Monday", "platform": "LinkedIn", "copy": "string", "imageBrief": "string" }
+  ]
+}
+"week" is 1-4. "day" is a weekday name. "platform" is one of the fund's actual channels. "copy" is the complete, ready-to-publish post text for that platform. "imageBrief" is a one-sentence description of what a supporting image for this specific post should depict (used to generate that image separately) -- grounded in the post's actual content, not generic.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Generate the complete monthly content calendar as JSON in the exact format described above.",
+        a
+      ),
+    maxTokens: 8000,
   },
   {
     id: "linkedin_post",

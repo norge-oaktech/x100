@@ -235,6 +235,23 @@ Pitch Deck, Event Presentation — Educational, and Event Presentation — Solic
 
 **Migration required:** run `supabase/migrations/0005_prompt_library.sql` — creates the `prompt_overrides` table.
 
+## Phase sub-tabs within Assets
+
+The Marketing Assets section (inside the Assets tab) now has its own sub-tab bar — Phase 2, Phase 3A, Phase 3B, Phase 3C — instead of stacking all 47 assets in one scroll. Only the selected phase's assets render at a time.
+
+## Monthly Social Content Calendar (Excel export)
+
+New asset: **Monthly Social Content Calendar** (Phase 3A) — generates 12-16 posts across a month (3-4/week), spread across whichever platforms the fund's onboarding data actually supports, and produces a real downloadable **`.xlsx` file with a generated image embedded directly in each post's row**.
+
+**How it works:**
+- Claude outputs structured JSON (one entry per post: week, day, platform, copy, image brief) instead of prose — same JSON-based pattern as the pptx decks.
+- The app generates one image per post **in parallel** (not sequentially — 12-16 sequential image calls would risk timing out), each grounded in that specific post's content, using the same anti-clipart/anti-generic-people-ok guardrails as every other image asset.
+- Builds a real `.xlsx` using `exceljs`, with each image actually embedded in the worksheet next to its row (verified this at the file-structure level, not just that the code compiles — confirmed the images genuinely land in `xl/media/` inside the file).
+- **This is a longer-running generation** — up to ~16 parallel OpenAI image calls plus the Claude call. Set `maxDuration = 180` on the generate route so Vercel doesn't kill it early, but this requires a Vercel plan/config that actually honors longer function durations (the Hobby tier caps lower regardless of what the code requests) — worth checking your plan if this one times out in practice.
+- The in-app preview shows posts grouped by week (platform, day, copy) instead of raw JSON; the actual file is what has the images.
+
+**Migration required:** run `supabase/migrations/0006_calendar_xlsx_format.sql` — extends `asset_files` to allow the `xlsx` format (reuses the same `asset-documents` bucket from the pptx work, no new bucket needed).
+
 ## What I need from you next
 
 - Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).

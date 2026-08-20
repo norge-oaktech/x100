@@ -3,10 +3,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
 import { generateImages } from "@/lib/openai/generateImage";
-import { buildDefaultImagePrompt } from "@/lib/assets/buildImagePrompt";
+import { buildDefaultImagePrompt, buildCalendarPostImagePrompt } from "@/lib/assets/buildImagePrompt";
 import { parseDeckJson, buildDeckPptx } from "@/lib/decks/buildPptx";
+import { parseCalendarJson, buildCalendarXlsx } from "@/lib/calendar/buildCalendarXlsx";
 import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import type { GeneratedAsset } from "@/types/database";
+
+// The content calendar generates one image per post (12-16 calls, run in
+// parallel) on top of the text generation itself -- comfortably longer
+// than Vercel's default function timeout. Requires a plan/config that
+// honors this (Hobby caps lower regardless of this setting).
+export const maxDuration = 180;
 
 export async function POST(request: Request) {
   const supabase = createClient();
@@ -203,6 +210,56 @@ export async function POST(request: Request) {
         // Swallow — text (JSON) generation already succeeded; a failed
         // pptx build just means no download file yet. Most likely cause is
         // Claude's JSON not parsing cleanly — Regenerate will retry both.
+      }
+    }
+
+    // For the content calendar, generate one image per post (in parallel --
+    // 12-16 sequential OpenAI calls would risk the function timeout) and
+    // build a real .xlsx with each image embedded next to its post. Same
+    // best-effort pattern: an individual post's image failing just leaves
+    // that row without an image, and a total failure here doesn't touch
+    // the text generation, which already succeeded.
+    if (template.supportsCalendarFile) {
+      try {
+        const calendar = parseCalendarJson(content);
+
+        const imageBuffers = await Promise.all(
+          calendar.posts.map(async (post) => {
+            try {
+              const prompt = buildCalendarPostImagePrompt(
+                post.copy,
+                post.imageBrief,
+                post.platform,
+                onboarding.answers
+              );
+              const [base64Image] = await generateImages(prompt, 1, "1024x1024");
+              return Buffer.from(base64Image, "base64");
+            } catch {
+              return null;
+            }
+          })
+        );
+
+        const xlsxBuffer = await buildCalendarXlsx(calendar.posts, imageBuffers);
+        const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.xlsx`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("asset-documents")
+          .upload(storagePath, xlsxBuffer, {
+            contentType:
+              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          });
+
+        if (!uploadError) {
+          await supabase.from("asset_files").insert({
+            generated_asset_id: assetRow.id,
+            format: "xlsx",
+            storage_path: storagePath,
+          });
+        }
+      } catch {
+        // Swallow — text (JSON) generation already succeeded; a failed
+        // xlsx build just means no download file yet.
       }
     }
 
