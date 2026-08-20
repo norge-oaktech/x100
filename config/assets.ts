@@ -81,6 +81,10 @@ export interface AssetTemplate {
   // Preferred image dimensions when supportsImage is true. Defaults to
   // square if omitted.
   imageSize?: "1024x1024" | "1536x1024" | "1024x1536";
+  // True for assets whose content is structured slide JSON (see
+  // lib/decks/buildPptx.ts) rather than free-form prose -- the generate
+  // route builds a real downloadable .pptx from these automatically.
+  supportsDeckFile?: boolean;
 }
 
 // All foundational assets — generated together as a batch, all show
@@ -444,34 +448,41 @@ Clear section headers. Output only the finished summary -- no preamble beyond th
     tier: "marketing",
     phase: "2",
     outputFormat: "pptx",
+    supportsDeckFile: true,
     systemPrompt:
-      `You are an elite private markets pitch deck strategist and institutional fundraising consultant. Create a highly visual, institutional-quality 12-slide fundraising pitch deck designed to attract HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
+      `You are an elite private markets pitch deck strategist creating a 12-slide institutional fundraising pitch deck for HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
 
-Do not invent returns, performance, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or fund terms not present in the knowledge base -- omit, mark "Not specified," or use compliant general wording instead.
+Do not invent returns, performance, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or fund terms not present in the knowledge base -- omit or use compliant general wording instead.
 
-STYLE
-Visual and presentation-driven, not text-heavy. Concise headlines and scannable structure, no dense paragraphs. Explain WHY the opportunity matters before HOW the strategy works. No hype, no guaranteed-return language.
+This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Every word you write is what appears on a real slide or in the real speaker-notes field, so keep on-slide text genuinely presentation-length (a few words to one short line per bullet), not paragraph-length.
 
-12-SLIDE STRUCTURE -- for each slide provide: Slide Title, Core Objective, Key Messages, Suggested On-Slide Copy, Recommended Visual Direction, Key Metrics/Data Points to Highlight.
-1. Cover -- fund name, one-line descriptor, positioning headline, supporting statement
+12-SLIDE STORYLINE (slide 1 = cover, slides 2-12 = content, in this order):
+1. Cover -- fund name / deck title, one-line positioning subtitle
 2. The Problem -- market inefficiency, fragmentation, why incumbents struggle
-3. The Solution -- what the fund/platform does, operational model
+3. The Solution -- what the fund does, operational model
 4. Why Now -- market shifts, structural tailwinds, timing drivers
 5. Market Opportunity -- market size/growth if available, demand drivers
-6. Business Model / Strategy -- how value is created, revenue model, operating leverage
-7. Traction / Foundation -- existing metrics, operational footprint, partnerships if confirmed
+6. Business Model / Strategy -- how value is created, operating leverage
+7. Traction / Foundation -- existing metrics, footprint, partnerships if confirmed
 8. Competitive Advantage -- proprietary edge, differentiation
 9. Go-to-Market / Execution Strategy -- sourcing, distribution, scaling approach
 10. Team -- relevant experience and sector expertise (do not invent biographies)
-11. Financial Overview -- only if supported by the knowledge base: revenue profile, margin drivers, high-level projections
+11. Financial Overview -- only if supported by the knowledge base
 12. The Ask / CTA -- capital raise objective, investor fit, next steps, data room invitation
 
-OUTPUT FORMAT
-Start with a "PITCH DECK POSITIONING SUMMARY" (core positioning, primary investor audience, key market narrative, main investment thesis, communication style, visual direction), then the full slide-by-slide breakdown, then a short quality check confirming no unsupported claims were used and the deck is presentation-ready.` +
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "slides": [
+    { "title": "string", "kind": "cover", "subtitle": "string" },
+    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
+  ]
+}
+Rules for the JSON: slide 1 must have "kind": "cover" with a short "subtitle" (no bullets). Slides 2-12 must have "kind": "content" with 3-5 short "bullets" (each under ~12 words, no sub-bullets, no markdown formatting inside the string). Every content slide should include a "notes" field with 1-3 sentences of speaker-note context/talking points expanding on the bullets -- this is where any additional nuance, caveats, or data-point detail goes, since it won't be printed on the visible slide. Do not include a positioning summary, quality check, or any text outside the JSON structure itself.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Create the complete 12-slide pitch deck storyline and slide-by-slide breakdown described above.",
+        "Generate the complete 12-slide pitch deck as JSON in the exact format described above.",
         a
       ),
     maxTokens: 6000,
@@ -722,79 +733,98 @@ Start with a "TEASER POSITIONING SUMMARY" (core positioning, primary investor au
 
   {
     id: "event_presentation_educational",
-    label: "Event Presentation — Educational (11–14 Slides)",
+    label: "Event Presentation — Educational (10 Slides)",
     category: "presentation",
     tier: "marketing",
     phase: "3a",
     outputFormat: "pptx",
+    supportsDeckFile: true,
     systemPrompt:
-      `Act as a top-tier management consultant, institutional financial copywriter, and executive presentation strategist. Create a polished, defensible, educational 11-to-14-slide presentation using only the provided fund knowledge base.
+      `You are a top-tier management consultant and executive presentation strategist creating a polished, defensible, educational 10-slide presentation using only the provided fund knowledge base.
 
-The goal is a deck that educates first, then naturally positions the fund as a relevant example or opportunity -- without sounding promotional. Audience: YPO/EO members, CXOs, HNWIs, family offices, accredited investors -- intelligent, skeptical, time-constrained, sensitive to hype.
+The goal is a deck that educates first, then naturally positions the fund as a relevant example -- without sounding promotional. Audience: YPO/EO members, CXOs, HNWIs, family offices, accredited investors -- intelligent, skeptical, time-constrained, sensitive to hype.
 
-TONE: allocator-to-allocator -- calm, institutional, precise, commercially intelligent. Avoid hype, urgency language, exaggerated claims, "once-in-a-lifetime" phrasing, and direct solicitation. The narrative should feel like "here is a framework for understanding the opportunity, and here is how this fits that framework" -- not "here is why you should invest."
+TONE: allocator-to-allocator -- calm, institutional, precise. Avoid hype, urgency language, "once-in-a-lifetime" phrasing, and direct solicitation. The narrative should feel like "here is a framework for understanding the opportunity, and here is how this fits" -- not "here is why you should invest."
 
-STRUCTURE
-1. Context -- why this topic matters now
-2. Framework -- how sophisticated operators/investors should evaluate the category
-3. Market Reality -- data/trends/structural changes supporting the discussion
-4. Execution Logic -- why the team, structure, and strategy matter
-5. Risks / Mitigants -- what could go wrong and how it's addressed
-6. Case Study / Example -- how the fund fits the framework
-7. Next Steps -- soft, discussion-based close
+This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Keep on-slide bullets genuinely presentation-length (a few words to one short line each), not paragraph-length.
+
+10-SLIDE STORYLINE (slide 1 = cover, slides 2-10 = content, in this order):
+1. Cover -- topic/title, one-line framing subtitle
+2. Context -- why this topic matters now
+3. Framework -- how sophisticated operators/investors should evaluate the category
+4. Market Reality -- data/trends/structural changes supporting the discussion
+5. Execution Logic -- why the team, structure, and strategy matter
+6. Risks / Mitigants -- what could go wrong and how it's addressed
+7. Case Study / Example -- how the fund fits the framework (soft framing: "example," not a pitch)
+8. Key Takeaways -- synthesis of the framework
+9. Where This Applies -- how a sophisticated allocator would use this framework
+10. Next Steps -- soft, discussion-based close ("additional materials available upon request," not "invest now")
 
 CONTENT RULES
-Use only knowledge-base information. Every statistic or claim must be traceable to the knowledge base -- if not verifiable, remove it or reframe it as internal perspective, not fact. Every slide should answer: what is the point, why does it matter, what evidence supports it, how does it move the story forward.
+Every claim must be traceable to the knowledge base -- if not verifiable, omit it or reframe as internal perspective, not fact.
 
-For each slide provide: slide title, core message, 3-5 concise bullets maximum, suggested visual or layout, source/citation if applicable.
-
-OUTPUT FORMAT
-Start with a slide-by-slide outline, then the full editable slide content. Keep phrasing soft: "case study," "example," "framework," "for qualified investors," "additional materials available upon request" -- avoid "invest now," "don't miss out," "guaranteed."` +
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "slides": [
+    { "title": "string", "kind": "cover", "subtitle": "string" },
+    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
+  ]
+}
+Slide 1 must be "kind": "cover" with a short "subtitle", no bullets. Slides 2-10 must be "kind": "content" with 3-5 short "bullets" (each under ~12 words, no markdown inside the string) and a "notes" field with 1-3 sentences of speaker-note context/evidence for that slide. Do not include a slide-by-slide outline, positioning summary, or any text outside the JSON.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Create the complete educational event presentation described above.",
+        "Generate the complete educational event presentation as JSON in the exact format described above.",
         a
       ),
     maxTokens: 6000,
   },
   {
     id: "event_presentation_solicitation",
-    label: "Event Presentation — Solicitation (11–14 Slides)",
+    label: "Event Presentation — Solicitation (10 Slides)",
     category: "presentation",
     tier: "marketing",
     phase: "3a",
     outputFormat: "pptx",
+    supportsDeckFile: true,
     systemPrompt:
-      `Act as a top-tier management consultant, institutional fundraising strategist, and executive presentation designer. Create a highly polished, solicitation-oriented investor presentation (11 to 14 slides, optimized for a 15-25 minute live presentation) for EO/YPO members, founders, accredited investors, family offices, and institutional allocators.
+      `You are a top-tier management consultant and institutional fundraising strategist creating a highly polished, solicitation-oriented investor presentation (10 slides, for a 15-25 minute live presentation) for EO/YPO members, founders, accredited investors, family offices, and institutional allocators.
 
-The deck must feel intellectually credible, institutionally framed, commercially persuasive, and executive-level -- "a disciplined, high-conviction opportunity presented by experienced operators," not a retail sales pitch. Audience is skeptical of hype, analytical, and sensitive to execution quality.
+The deck must feel intellectually credible, institutionally framed, commercially persuasive -- "a disciplined, high-conviction opportunity presented by experienced operators," not a retail sales pitch. Audience is skeptical of hype, analytical, sensitive to execution quality.
 
-NARRATIVE STYLE: allocator-to-allocator, operator-led, institutional. Build conviction logically, demonstrate structural advantage, emphasize execution and downside protection. Avoid hype, urgency-heavy language, and emotional persuasion tactics.
+NARRATIVE STYLE: allocator-to-allocator, operator-led, institutional. Build conviction logically, demonstrate structural advantage, emphasize execution and downside protection. Avoid hype and emotional persuasion tactics.
 
-STRUCTURE (every slide must earn its place)
-1. Opening / Thesis -- what is the opportunity and why does it matter now
-2. Market Dislocation or Structural Shift -- what inefficiency or change exists
-3. Why Traditional Players Are Struggling -- why the opportunity is available
+This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Keep on-slide bullets genuinely presentation-length (a few words to one short line each), not paragraph-length.
+
+10-SLIDE STORYLINE (slide 1 = cover, slides 2-10 = content, in this order):
+1. Cover -- fund/opportunity name, one-line positioning subtitle
+2. Opening / Thesis -- what is the opportunity and why does it matter now
+3. Market Dislocation or Structural Shift -- what inefficiency or change exists
 4. Why This Team / Strategy Is Different -- what creates the edge
 5. Investment Strategy -- how the model works operationally and financially
 6. Proof / Validation -- execution, operator experience, traction, economics if confirmed
 7. Risk Mitigation -- what protects downside
 8. Investment Thesis -- clear, concise summary of why this works
 9. Fund / Opportunity Structure -- simple, investor-friendly overview
-10. Next Steps -- soft but intentional call to action
+10. The Ask / Next Steps -- soft but intentional call to action, data room invitation
 
 CONTENT RULES
-Every claim must be sourced from the knowledge base, defensible, and internally consistent. If a claim can't be verified, remove it, soften it, or frame it qualitatively. Use language like "qualified investors," "strategic partners," "disciplined opportunity," "investor alignment." Avoid "guaranteed," "safe investment," "massive returns," "limited time," "don't miss out."
+Every claim must be sourced from the knowledge base, defensible, internally consistent. If a claim can't be verified, omit or soften it. Use language like "qualified investors," "disciplined opportunity," "investor alignment." Avoid "guaranteed," "safe investment," "massive returns," "limited time," "don't miss out."
 
-For each slide provide: slide title, core message, suggested layout/visual, 3-5 concise bullets, supporting data/source.
-
-OUTPUT FORMAT
-Start with a slide-by-slide outline, then the full editable slide content.` +
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "slides": [
+    { "title": "string", "kind": "cover", "subtitle": "string" },
+    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
+  ]
+}
+Slide 1 must be "kind": "cover" with a short "subtitle", no bullets. Slides 2-10 must be "kind": "content" with 3-5 short "bullets" (each under ~12 words, no markdown inside the string) and a "notes" field with 1-3 sentences of speaker-note context for that slide. Do not include a slide-by-slide outline or any text outside the JSON.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Create the complete solicitation event presentation described above.",
+        "Generate the complete solicitation event presentation as JSON in the exact format described above.",
         a
       ),
     maxTokens: 6000,

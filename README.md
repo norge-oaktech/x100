@@ -201,6 +201,22 @@ New asset: **Investor Landing Page — HTML (for GHL)**, `investor_landing_page_
 
 **Decided against integrating:** Lovable (replaced by the above), Vapi (its job is placing live phone calls, not generating content — only relevant if you want the app to actually dial numbers, which is a different feature with its own compliance considerations), and Perplexity (only needed if AI SEO/GEO content should be grounded in live web search — Claude's own API has a native web search tool that covers the same need without a second vendor; let me know if you want that turned on).
 
+## Real PowerPoint files (Gamma replacement)
+
+Pitch Deck, Event Presentation — Educational, and Event Presentation — Solicitation now generate **actual downloadable `.pptx` files** — no Gamma needed.
+
+**How it works:**
+- Claude now outputs structured JSON (slide titles, bullets, speaker notes) instead of free-form prose — required so a program can reliably turn it into real slides. This happens automatically as part of the normal "Generate" click, same as images.
+- The app builds a real PowerPoint file server-side using `pptxgenjs` — a clean institutional template (navy cover slide, off-white content slides, consistent accent color), speaker notes go into PowerPoint's actual Notes field, not printed on the slide itself.
+- The file uploads to a new private Supabase Storage bucket, `asset-documents` (same signed-URL, team-only-access pattern as generated images).
+- Each deck card now shows a **readable slide-by-slide preview** in the app (title, bullets, notes per slide) instead of a wall of text, plus a **Download deck (.pptx)** button.
+- Verified the actual generated file opens as valid PowerPoint (tested the raw OOXML structure, not just that code compiles) before shipping this.
+- Deck structure was also tightened from the original 11–14 "flexible" slide count to a fixed 10–12 slides per deck, since a real file needs a definite slide count, not a range.
+
+**Migration required:** run `supabase/migrations/0004_asset_documents_storage.sql` — creates the new bucket and extends `asset_files` to allow the `pptx` format.
+
+**One realistic limitation to know about:** this generates clean, readable, on-brand slides — it does not replicate Gamma's AI-driven layout variety (varying slide compositions, generated imagery per slide, etc.). If a deck needs that level of visual production value, someone would still open the `.pptx` in PowerPoint and polish it further. This gets you a legitimate, presentable starting deck for free, not a finished creative-agency-quality product.
+
 ## What I need from you next
 
 - Review the Phase 2 + 3A outputs once generated, especially **Business PPM Draft** and **Legal Draft Assistance** (both explicitly designed to defer heavily to real counsel — worth confirming that comes through clearly in practice, not just in the prompt).

@@ -59,17 +59,22 @@ export default async function ProjectDetailPage({
         .returns<AssetFile[]>()
     : { data: [] as AssetFile[] };
 
-  // Sign every image path (1 hour expiry — regenerated on every page load,
-  // so this is generous enough for a single review session).
+  // Sign every file path (1 hour expiry — regenerated on every page load,
+  // so this is generous enough for a single review session). Images and
+  // documents (pptx, etc.) live in separate storage buckets.
   const imagesByAssetId: Record<string, AssetFileWithUrl[]> = {};
+  const documentsByAssetId: Record<string, AssetFileWithUrl[]> = {};
   for (const file of assetFiles ?? []) {
+    const bucket = file.format === "png" ? "asset-images" : "asset-documents";
+    const targetMap = file.format === "png" ? imagesByAssetId : documentsByAssetId;
+
     const { data: signed } = await supabase.storage
-      .from("asset-images")
+      .from(bucket)
       .createSignedUrl(file.storage_path, 3600);
     if (!signed) continue;
-    const list = imagesByAssetId[file.generated_asset_id] ?? [];
+    const list = targetMap[file.generated_asset_id] ?? [];
     list.push({ ...file, url: signed.signedUrl });
-    imagesByAssetId[file.generated_asset_id] = list;
+    targetMap[file.generated_asset_id] = list;
   }
 
   const onboardingUrl = `${
@@ -134,6 +139,7 @@ export default async function ProjectDetailPage({
         hasOnboardingResponses={!!response}
         initialAssets={generatedAssets ?? []}
         imagesByAssetId={imagesByAssetId}
+        documentsByAssetId={documentsByAssetId}
       />
 
       {!response ? (

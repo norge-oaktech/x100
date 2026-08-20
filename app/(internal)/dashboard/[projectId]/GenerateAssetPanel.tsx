@@ -136,6 +136,59 @@ function ImageSubsection({
   );
 }
 
+function DeckPreview({ content }: { content: string }) {
+  try {
+    const deck = JSON.parse(content) as {
+      slides: { title: string; kind?: string; subtitle?: string; bullets?: string[]; notes?: string }[];
+    };
+    if (!Array.isArray(deck.slides) || deck.slides.length === 0) throw new Error("empty");
+
+    return (
+      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+        {deck.slides.map((slide, i) => (
+          <div
+            key={i}
+            className="card-sm"
+            style={{ background: slide.kind === "cover" ? "var(--bg-surface-high)" : undefined }}
+          >
+            <div className="tf" style={{ fontSize: 10.5, marginBottom: 3 }}>
+              SLIDE {i + 1}
+              {slide.kind === "cover" ? " · COVER" : ""}
+            </div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+              {slide.title}
+            </div>
+            {slide.subtitle && (
+              <div className="tm" style={{ fontSize: 12.5, marginTop: 2, fontStyle: "italic" }}>
+                {slide.subtitle}
+              </div>
+            )}
+            {slide.bullets && slide.bullets.length > 0 && (
+              <ul style={{ marginTop: 6, paddingLeft: 18, fontSize: 12.5, color: "var(--text-secondary)" }}>
+                {slide.bullets.map((b, bi) => (
+                  <li key={bi}>{b}</li>
+                ))}
+              </ul>
+            )}
+            {slide.notes && (
+              <div
+                className="tf"
+                style={{ fontSize: 11, marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}
+              >
+                Speaker notes: {slide.notes}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    );
+  } catch {
+    // Fall back to raw text if the JSON didn't parse for any reason —
+    // still readable, just not the nicer slide-card view.
+    return <div className="output-val">{content}</div>;
+  }
+}
+
 function AssetCard({
   template,
   existing,
@@ -149,6 +202,7 @@ function AssetCard({
   images,
   isImageGenerating,
   onGenerateImages,
+  documents,
 }: {
   template: AssetTemplate;
   existing?: GeneratedAsset;
@@ -162,6 +216,7 @@ function AssetCard({
   images?: AssetFileWithUrl[];
   isImageGenerating?: boolean;
   onGenerateImages?: (customPrompt: string, count: number) => void;
+  documents?: AssetFileWithUrl[];
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(existing?.content ?? "");
@@ -285,6 +340,8 @@ function AssetCard({
               className="field-input"
               style={{ width: "100%", minHeight: 220, fontFamily: "var(--font-body)" }}
             />
+          ) : template.supportsDeckFile ? (
+            <DeckPreview content={existing.content} />
           ) : (
             <div className="output-val">{existing.content}</div>
           )}
@@ -304,6 +361,21 @@ function AssetCard({
           <button className="btn btn-ghost btn-sm" onClick={handleCopy}>
             {copied ? "Copied!" : "Copy"}
           </button>
+
+          {template.supportsDeckFile && documents && documents.length > 0 && (
+            <a
+              href={documents[documents.length - 1].url}
+              download
+              className="btn btn-primary btn-sm"
+            >
+              ⬇ Download deck (.pptx)
+            </a>
+          )}
+          {template.supportsDeckFile && (!documents || documents.length === 0) && (
+            <span className="tf" style={{ fontSize: 11.5 }}>
+              Building .pptx file… refresh in a moment if this doesn't appear
+            </span>
+          )}
 
           {template.tier === "foundational" && (
             <>
@@ -365,12 +437,14 @@ export function GenerateAssetPanel({
   hasOnboardingResponses,
   initialAssets,
   imagesByAssetId,
+  documentsByAssetId,
 }: {
   projectId: string;
   onboardingComplete: boolean;
   hasOnboardingResponses: boolean;
   initialAssets: GeneratedAsset[];
   imagesByAssetId: Record<string, AssetFileWithUrl[]>;
+  documentsByAssetId: Record<string, AssetFileWithUrl[]>;
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -611,6 +685,7 @@ export function GenerateAssetPanel({
                         disabled={false}
                         onGenerate={() => handleGenerate(template.id)}
                         images={existing ? imagesByAssetId[existing.id] : undefined}
+                        documents={existing ? documentsByAssetId[existing.id] : undefined}
                         isImageGenerating={isImageGeneratingThis}
                         onGenerateImages={
                           existing

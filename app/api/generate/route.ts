@@ -4,6 +4,7 @@ import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
 import { generateImages } from "@/lib/openai/generateImage";
 import { buildDefaultImagePrompt } from "@/lib/assets/buildImagePrompt";
+import { parseDeckJson, buildDeckPptx } from "@/lib/decks/buildPptx";
 import type { GeneratedAsset } from "@/types/database";
 
 export async function POST(request: Request) {
@@ -158,6 +159,37 @@ export async function POST(request: Request) {
         // Swallow — text generation already succeeded and was returned to
         // the user; a failed default image just means the Images section
         // will show empty with the option to generate manually.
+      }
+    }
+
+    // For deck-file assets, build the actual .pptx from the structured JSON
+    // Claude just generated. Best-effort, same pattern as images: a failure
+    // here does not fail the text generation, which already succeeded and
+    // is what the approval/review flow actually reads.
+    if (template.supportsDeckFile) {
+      try {
+        const deck = parseDeckJson(content);
+        const pptxBuffer = await buildDeckPptx(deck);
+        const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.pptx`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("asset-documents")
+          .upload(storagePath, pptxBuffer, {
+            contentType:
+              "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+          });
+
+        if (!uploadError) {
+          await supabase.from("asset_files").insert({
+            generated_asset_id: assetRow.id,
+            format: "pptx",
+            storage_path: storagePath,
+          });
+        }
+      } catch {
+        // Swallow — text (JSON) generation already succeeded; a failed
+        // pptx build just means no download file yet. Most likely cause is
+        // Claude's JSON not parsing cleanly — Regenerate will retry both.
       }
     }
 
