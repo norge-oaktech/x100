@@ -700,3 +700,39 @@
   min-width: 0;
   overflow-x: hidden;
 }
+
+/* ── TAB BAR (project detail page) ── */
+.atlas-theme .tab-bar {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 20px;
+}
+.atlas-theme .tab-item {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  cursor: pointer;
+  transition: color 0.12s, border-color 0.12s;
+  background: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  font-family: inherit;
+}
+.atlas-theme .tab-item:hover {
+  color: var(--text-primary);
+}
+.atlas-theme .tab-item.active {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+}
+.atlas-theme .tab-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  margin-left: 4px;
+}

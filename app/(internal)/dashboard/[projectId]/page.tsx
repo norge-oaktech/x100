@@ -10,6 +10,7 @@ import type {
   AssetFileWithUrl,
 } from "@/types/database";
 import { GenerateAssetPanel } from "./GenerateAssetPanel";
+import { ProjectTabs } from "./ProjectTabs";
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
   awaiting_onboarding: "b-draft",
@@ -133,71 +134,86 @@ export default async function ProjectDetailPage({
         </div>
       </div>
 
-      <GenerateAssetPanel
-        projectId={project.id}
-        onboardingComplete={onboardingComplete}
-        hasOnboardingResponses={!!response}
-        initialAssets={generatedAssets ?? []}
-        imagesByAssetId={imagesByAssetId}
-        documentsByAssetId={documentsByAssetId}
-      />
-
-      {!response ? (
-        <p className="tm mt16" style={{ fontSize: 13 }}>
-          Client hasn&apos;t started onboarding yet.
-        </p>
-      ) : (
-        <div style={{ marginTop: 32 }}>
-          <div className="section-label">Onboarding answers</div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            {ONBOARDING_SECTIONS.map((section) => {
-              const isDone = response.completed_sections?.includes(section.id);
-              return (
-                <div key={section.id} className="card-sm">
-                  <div className="fb">
-                    <span className="fw6" style={{ fontSize: 13 }}>
-                      {section.title}
-                    </span>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: isDone ? "var(--success)" : "var(--text-faint)",
-                      }}
-                    >
-                      {isDone ? "Complete" : "Not started"}
-                    </span>
-                  </div>
-                  {isDone && (
-                    <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
-                      {section.fields.map((field) => {
-                        const value = response.answers?.[field.id];
-                        if (!value || (Array.isArray(value) && value.length === 0))
-                          return null;
-                        return (
-                          <div key={field.id}>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "var(--text-faint)",
-                                marginBottom: 1,
-                              }}
-                            >
-                              {field.label}
-                            </div>
-                            <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
-                              {Array.isArray(value) ? value.join(", ") : value}
-                            </div>
-                          </div>
-                        );
-                      })}
+      <ProjectTabs
+        answersCount={completedCount}
+        foundational={
+          <GenerateAssetPanel
+            projectId={project.id}
+            onboardingComplete={onboardingComplete}
+            hasOnboardingResponses={!!response}
+            initialAssets={generatedAssets ?? []}
+            imagesByAssetId={imagesByAssetId}
+            documentsByAssetId={documentsByAssetId}
+            section="foundational"
+          />
+        }
+        assets={
+          <GenerateAssetPanel
+            projectId={project.id}
+            onboardingComplete={onboardingComplete}
+            hasOnboardingResponses={!!response}
+            initialAssets={generatedAssets ?? []}
+            imagesByAssetId={imagesByAssetId}
+            documentsByAssetId={documentsByAssetId}
+            section="marketing"
+          />
+        }
+        answers={
+          !response ? (
+            <p className="tm" style={{ fontSize: 13 }}>
+              Client hasn&apos;t started onboarding yet.
+            </p>
+          ) : (
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              {ONBOARDING_SECTIONS.map((section) => {
+                const isDone = response.completed_sections?.includes(section.id);
+                return (
+                  <div key={section.id} className="card-sm">
+                    <div className="fb">
+                      <span className="fw6" style={{ fontSize: 13 }}>
+                        {section.title}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          color: isDone ? "var(--success)" : "var(--text-faint)",
+                        }}
+                      >
+                        {isDone ? "Complete" : "Not started"}
+                      </span>
                     </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
+                    {isDone && (
+                      <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+                        {section.fields.map((field) => {
+                          const value = response.answers?.[field.id];
+                          if (!value || (Array.isArray(value) && value.length === 0))
+                            return null;
+                          return (
+                            <div key={field.id}>
+                              <div
+                                style={{
+                                  fontSize: 11,
+                                  color: "var(--text-faint)",
+                                  marginBottom: 1,
+                                }}
+                              >
+                                {field.label}
+                              </div>
+                              <div style={{ fontSize: 13, color: "var(--text-secondary)" }}>
+                                {Array.isArray(value) ? value.join(", ") : value}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )
+        }
+      />
     </main>
   );
 }

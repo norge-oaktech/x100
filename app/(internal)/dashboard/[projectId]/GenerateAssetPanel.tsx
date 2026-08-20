@@ -438,6 +438,7 @@ export function GenerateAssetPanel({
   initialAssets,
   imagesByAssetId,
   documentsByAssetId,
+  section = "both",
 }: {
   projectId: string;
   onboardingComplete: boolean;
@@ -445,6 +446,10 @@ export function GenerateAssetPanel({
   initialAssets: GeneratedAsset[];
   imagesByAssetId: Record<string, AssetFileWithUrl[]>;
   documentsByAssetId: Record<string, AssetFileWithUrl[]>;
+  // Lets callers render just the foundational block or just the marketing
+  // block (e.g. from separate tabs) instead of both stacked together.
+  // Defaults to "both" so any existing usage is unaffected.
+  section?: "foundational" | "marketing" | "both";
 }) {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
@@ -550,6 +555,7 @@ export function GenerateAssetPanel({
       )}
 
       {/* ── Step 1: Foundational Documents ───────────────────────── */}
+      {(section === "foundational" || section === "both") && (
       <div className="section-block">
         <div className="section-block-header">
           <span className="step-num">1</span>
@@ -600,8 +606,10 @@ export function GenerateAssetPanel({
           </div>
         </div>
       </div>
+      )}
 
       {/* ── Step 2: Marketing Assets ─────────────────────────────── */}
+      {(section === "marketing" || section === "both") && (
       <div className="section-block">
         <div className={`section-block-header${locked ? " locked" : ""}`}>
           <span className={`step-num${locked ? " dimmed" : ""}`}>2</span>
@@ -702,6 +710,7 @@ export function GenerateAssetPanel({
           </div>
         )}
       </div>
+      )}
     </div>
   );
 }
