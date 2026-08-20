@@ -63,7 +63,7 @@ function ImageSubsection({
 
       {images.length === 0 && (
         <p className="tf" style={{ fontSize: 11.5, marginBottom: 10 }}>
-          No image yet — regenerate below, or click Regenerate on the card
+          No image yet — generate below, or click Regenerate on the card
           above to also refresh the text.
         </p>
       )}
@@ -106,7 +106,7 @@ function ImageSubsection({
       <textarea
         value={customPrompt}
         onChange={(e) => setCustomPrompt(e.target.value)}
-        placeholder="Want something different? Describe the change (optional) — e.g. 'more blue tones' or 'simpler composition' — then regenerate."
+        placeholder="Want something different? Describe the change (optional) — e.g. 'more blue tones' or 'simpler composition' — then generate. New images are added to the gallery, older ones aren't lost (up to 10, then the oldest are removed)."
         className="field-input"
         style={{ width: "100%", minHeight: 60, marginBottom: 8 }}
       />
@@ -129,7 +129,7 @@ function ImageSubsection({
           disabled={isGenerating}
           onClick={() => onGenerateImages(customPrompt, count)}
         >
-          {isGenerating ? "Generating…" : "⚡ Regenerate image"}
+          {isGenerating ? "Generating…" : "⚡ Generate more"}
         </button>
       </div>
     </div>

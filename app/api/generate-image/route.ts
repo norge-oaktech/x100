@@ -70,28 +70,9 @@ export async function POST(request: Request) {
   }
 
   const imageCount = Math.min(Math.max(count ?? 1, 1), 4); // UI caps at 4 per batch
+  const MAX_IMAGES_PER_ASSET = 10;
 
   try {
-    // "Regenerate" means replace, not append — remove any existing images
-    // for this asset (both the storage objects and the DB rows) before
-    // generating the new set, so the gallery always reflects only the
-    // latest generation.
-    const { data: existingFiles } = await supabase
-      .from("asset_files")
-      .select("id, storage_path")
-      .eq("generated_asset_id", asset.id)
-      .eq("format", "png");
-
-    if (existingFiles && existingFiles.length > 0) {
-      await supabase.storage
-        .from("asset-images")
-        .remove(existingFiles.map((f) => f.storage_path));
-      await supabase
-        .from("asset_files")
-        .delete()
-        .in("id", existingFiles.map((f) => f.id));
-    }
-
     const base64Images = await generateImages(
       prompt,
       imageCount,
@@ -127,6 +108,27 @@ export async function POST(request: Request) {
       }
 
       uploaded.push({ id: fileRow.id, storagePath });
+    }
+
+    // Images accumulate across regenerations (so past attempts stay
+    // downloadable) but are capped at MAX_IMAGES_PER_ASSET — prune the
+    // oldest ones once the count exceeds that, oldest-first.
+    const { data: allFiles } = await supabase
+      .from("asset_files")
+      .select("id, storage_path, created_at")
+      .eq("generated_asset_id", asset.id)
+      .eq("format", "png")
+      .order("created_at", { ascending: true });
+
+    if (allFiles && allFiles.length > MAX_IMAGES_PER_ASSET) {
+      const toPrune = allFiles.slice(0, allFiles.length - MAX_IMAGES_PER_ASSET);
+      await supabase.storage
+        .from("asset-images")
+        .remove(toPrune.map((f) => f.storage_path));
+      await supabase
+        .from("asset_files")
+        .delete()
+        .in("id", toPrune.map((f) => f.id));
     }
 
     return NextResponse.json({ success: true, count: uploaded.length });
