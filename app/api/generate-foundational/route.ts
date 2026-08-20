@@ -32,7 +32,18 @@ export async function POST(request: Request) {
     );
   }
 
-  const results = await generateFoundationalBatch(supabase, projectId, onboarding.answers);
+  const { data: projectRow } = await supabase
+    .from("projects")
+    .select("client_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  const results = await generateFoundationalBatch(
+    supabase,
+    projectId,
+    onboarding.answers,
+    projectRow?.client_id ?? null
+  );
 
   const failures = results.filter((r) => !r.ok);
   if (failures.length > 0) {

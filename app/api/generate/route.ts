@@ -5,6 +5,7 @@ import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate"
 import { generateImages } from "@/lib/openai/generateImage";
 import { buildDefaultImagePrompt } from "@/lib/assets/buildImagePrompt";
 import { parseDeckJson, buildDeckPptx } from "@/lib/decks/buildPptx";
+import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import type { GeneratedAsset } from "@/types/database";
 
 export async function POST(request: Request) {
@@ -46,6 +47,18 @@ export async function POST(request: Request) {
       { status: 400 }
     );
   }
+
+  const { data: projectRow } = await supabase
+    .from("projects")
+    .select("client_id")
+    .eq("id", projectId)
+    .maybeSingle();
+
+  const effectiveSystemPrompt = await resolveSystemPrompt(
+    supabase,
+    template.id,
+    projectRow?.client_id ?? null
+  );
 
   // Marketing-tier assets are locked until every foundational document is
   // approved. This check happens server-side, not just in the UI, so it
@@ -93,7 +106,7 @@ export async function POST(request: Request) {
 
   try {
     let content = await generateAssetContent(
-      template.systemPrompt,
+      effectiveSystemPrompt,
       userPrompt,
       template.maxTokens
     );

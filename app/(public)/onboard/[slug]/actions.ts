@@ -14,7 +14,7 @@ async function getEligibleProjectBySlug(slug: string) {
 
   const { data: project } = await supabase
     .from("projects")
-    .select("id, status")
+    .select("id, status, client_id")
     .eq("slug", slug)
     .single();
 
@@ -129,7 +129,12 @@ export async function completeOnboardingAction(slug: string) {
     // complete. Awaited deliberately (not fire-and-forget) so a serverless
     // function teardown can't kill it mid-generation -- the client's
     // "Submit" button shows a loading state for the duration.
-    await generateFoundationalBatch(supabase, project.id, response.answers);
+    await generateFoundationalBatch(
+      supabase,
+      project.id,
+      response.answers,
+      project.client_id ?? null
+    );
 
     await supabase
       .from("projects")

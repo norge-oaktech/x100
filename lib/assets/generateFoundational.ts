@@ -1,5 +1,6 @@
 import { ASSET_TEMPLATES } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
+import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type OnboardingAnswers = Record<string, string | string[]>;
@@ -12,7 +13,8 @@ type OnboardingAnswers = Record<string, string | string[]>;
 export async function generateFoundationalBatch(
   supabase: SupabaseClient,
   projectId: string,
-  answers: OnboardingAnswers
+  answers: OnboardingAnswers,
+  clientId: string | null = null
 ) {
   const foundationalTemplates = ASSET_TEMPLATES.filter(
     (t) => t.tier === "foundational"
@@ -21,6 +23,7 @@ export async function generateFoundationalBatch(
   const results = await Promise.allSettled(
     foundationalTemplates.map(async (template) => {
       const userPrompt = template.buildUserPrompt(answers);
+      const systemPrompt = await resolveSystemPrompt(supabase, template.id, clientId);
 
       const { data: assetRow, error: insertError } = await supabase
         .from("generated_assets")
@@ -40,7 +43,7 @@ export async function generateFoundationalBatch(
 
       try {
         const content = await generateAssetContent(
-          template.systemPrompt,
+          systemPrompt,
           userPrompt,
           template.maxTokens
         );

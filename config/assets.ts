@@ -51,7 +51,10 @@ export type AssetCategory =
   | "seo"
   | "webinar"
   | "press"
-  | "event";
+  | "event"
+  | "sales"
+  | "video"
+  | "content";
 
 type OnboardingAnswers = Record<string, string | string[]>;
 
@@ -107,7 +110,7 @@ export const REQUIRED_FOUNDATIONAL_ASSET_IDS = [
   "messaging_framework",
 ] as const;
 
-const KB_GUARDRAILS = `
+export const KB_GUARDRAILS = `
 Use only the fund knowledge base provided below as your source of truth. Do not invent returns, performance figures, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or legal/fund structure details that are not present in the knowledge base. If a required detail is missing, omit it, write "Not specified," or use compliant general wording -- do not fabricate a placeholder value.`;
 
 function withKnowledgeBase(taskInstructions: string, answers: OnboardingAnswers) {
@@ -1326,6 +1329,379 @@ Output only the finished content in the format above -- no preamble.` +
         a
       ),
     maxTokens: 400,
+  },
+
+  // =====================================================================
+  // Phase 3B — Sales Enablement
+  // =====================================================================
+  {
+    id: "bdr_knowledge_base",
+    label: "BDR Knowledge Base",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are creating an internal knowledge base document for BDRs/SDRs conducting outbound outreach on behalf of a private investment fund -- a reference they can consult quickly during calls and email writing, not a formal external document.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+STRUCTURE
+1. 30-Second Fund Summary -- what to say if someone asks "what does the fund do?"
+2. Target Investor Profile -- who to prioritize, grounded in the fund's stated ICP
+3. Key Differentiators -- the 3-4 points to lead with
+4. Common Objections & Responses -- grounded in the fund's stated primary objection and reframe
+5. Do Not Say -- forbidden language/claims (from the fund's stated tone rules), plus anything requiring compliance review before repeating (returns, performance)
+6. Escalation -- when to loop in the Managing Partner vs. handle solo
+
+OUTPUT FORMAT
+Clear section headers, scannable. Output only the finished document -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the BDR Knowledge Base described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "email_sequences",
+    label: "Email Sequences (LP Nurture)",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a 4-5 email nurture sequence for prospective LPs who have engaged (e.g. took a first call or requested materials) but haven't yet committed -- moving them toward a data room request or follow-up meeting.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style -- founder-led, personalized, not mass-campaign in tone.
+
+STRUCTURE
+For each of 4-5 emails, output a Subject line + body (under 150 words each), spaced conceptually over several weeks: (1) follow-up after initial contact, (2) share a specific differentiator/proof point, (3) address the fund's stated primary objection proactively, (4) soft check-in, (5) direct ask for a data room request or meeting.
+
+OUTPUT FORMAT
+Label each email (Email 1, Email 2, etc.) with Subject + body. Output only the finished sequence -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write the complete LP nurture email sequence described above.", a),
+    maxTokens: 2000,
+  },
+  {
+    id: "weekly_principal_emails",
+    label: "Weekly Principal Email",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write one edition of a recurring weekly (or regular-cadence) email from the fund's Managing Partner to warm prospects and existing relationships -- a market-commentary or update email that maintains the relationship without being a hard sell.
+
+Do not invent statistics, deals, or market data not present in the knowledge base -- ground the commentary in the fund's stated thesis/philosophy rather than fabricated data points.
+
+STRUCTURE
+Subject line + body (150-250 words), first person from the Managing Partner: one observation or perspective tied to the fund's market thesis, then a brief, natural mention of the fund's own activity if relevant, closing with a low-pressure invitation to connect.
+
+OUTPUT FORMAT
+Output only the finished email (Subject + body) -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write one edition of the weekly principal email described above.", a),
+    maxTokens: 800,
+  },
+  {
+    id: "solicitation_emails",
+    label: "Solicitation Email",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a direct capital solicitation email for a warm prospective LP who has already had meaningful engagement (calls, materials shared) -- more direct than a first-touch cold outreach email, making a clear ask.
+
+Do not invent statistics, deals, fund terms, or claims not present in the knowledge base. Compliance note: solicitation emails should generally avoid stating specific performance targets without appropriate disclaimers -- if target returns are referenced, include a brief qualifier that targets are not guarantees.
+
+STRUCTURE
+Subject line + body (under 200 words): reference the prior relationship/engagement, restate the core value proposition briefly, make a direct ask (e.g. schedule a call to discuss commitment, or request specific next steps), include a one-line disclaimer if performance figures are referenced.
+
+OUTPUT FORMAT
+Output only the finished email (Subject + body) -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write the solicitation email described above.", a),
+    maxTokens: 800,
+  },
+  {
+    id: "sms_campaigns",
+    label: "SMS Campaign",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a short 2-3 message SMS sequence for reaching prospective investors who have opted in to SMS contact -- extremely short-form, respectful of the format.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Each message must be genuinely short (under 300 characters) and include opt-out language ("Reply STOP to opt out") on the first message in the sequence, consistent with standard SMS compliance practice.
+
+STRUCTURE
+Message 1: brief intro + soft CTA + opt-out line. Message 2 (sent days later if no response): one specific value point + CTA. Message 3 (optional, final touch): direct, low-pressure close.
+
+OUTPUT FORMAT
+Label each message (SMS 1, SMS 2, SMS 3). Output only the finished sequence -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write the SMS campaign sequence described above.", a),
+    maxTokens: 500,
+  },
+  {
+    id: "inbound_sales_scripts",
+    label: "Inbound Sales Script",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a call script/framework for handling inbound inquiries from prospective investors (someone who reached out first, e.g. via the website or a referral) -- conversational talking points, not a rigid word-for-word script.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+STRUCTURE
+1. Opening -- warm, natural opener acknowledging how they found the fund
+2. Discovery Questions -- 4-5 questions to understand the prospect's investment profile and interest
+3. Positioning -- how to describe the fund based on what discovery reveals, grounded in stated differentiators
+4. Objection Handling -- the fund's stated primary objection and reframe
+5. Next Steps / Close -- how to move toward a data room request or follow-up meeting
+
+OUTPUT FORMAT
+Clear section headers, conversational talking points not verbatim dialogue. Output only the finished script -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write the inbound sales call script described above.", a),
+    maxTokens: 1500,
+  },
+  {
+    id: "outbound_sequences",
+    label: "Outbound Sequence",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Design a multi-touch outbound cadence for reaching cold prospective investors -- combining email and call touchpoints over several weeks, with the actual copy for each email touch included.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated preference for low-volume, highly personalized outreach rather than mass-campaign tactics -- this cadence should read as deliberate and founder-led, not automated spam.
+
+STRUCTURE
+Outline a 5-6 touch cadence over 3-4 weeks (mix of email and call/voicemail touches), then provide full email copy (Subject + body, under 150 words each) for each email touch in the cadence. For call/voicemail touches, provide a one-line talking point, not a full script (that's covered by other assets).
+
+OUTPUT FORMAT
+Cadence outline first (touch number, day, channel, one-line purpose), then full copy for each email touch. Output only the finished sequence -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Design the complete outbound sequence described above.", a),
+    maxTokens: 2500,
+  },
+  {
+    id: "voicemails",
+    label: "Voicemail Script",
+    category: "sales",
+    tier: "marketing",
+    phase: "3b",
+    outputFormat: "docx",
+    systemPrompt:
+      `Write a short cold-outreach voicemail script for a prospective investor -- meant to be left as an actual voicemail, so it must sound natural when spoken aloud, not written.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Keep it under 30 seconds spoken (roughly 60-75 words) -- voicemails that run long get deleted before they finish.
+
+OUTPUT FORMAT
+Output the spoken script only, written the way it should sound out loud (contractions, natural phrasing), ending with a clear callback ask and phone number placeholder "[INSERT CALLBACK NUMBER]". No preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Write the voicemail script described above.", a),
+    maxTokens: 400,
+  },
+
+  // =====================================================================
+  // Phase 3C — Video & Audio
+  // Note: this app has no video/voice generation integration yet (would
+  // need HeyGen, ElevenLabs, Opus Clip, etc.). The three genuinely
+  // video-dependent assets below produce a text script/production brief
+  // as a placeholder -- clearly labeled -- rather than actual video, so
+  // there's something usable now without pretending video exists.
+  // =====================================================================
+  {
+    id: "transcript_repurposing",
+    label: "Transcript Repurposing Plan",
+    category: "content",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `You help repurpose a source transcript (e.g. a podcast appearance, webinar, or interview) into multiple content pieces. This system does not currently accept an uploaded transcript as input, so you cannot repurpose real transcript content -- instead, produce a repurposing FRAMEWORK the team can apply once they have an actual transcript in hand.
+
+Begin with a note: "This is a repurposing framework, not applied to a real transcript -- this system does not yet support transcript upload. Apply this checklist manually once a real transcript is available."
+
+STRUCTURE
+1. What to Extract -- categories of moments worth pulling from any transcript (strong quotes, contrarian takes, specific data points, story moments, clear explanations of the thesis)
+2. Repurposing Map -- for each content format this fund uses (LinkedIn post, X post, blog article, short clip caption), what kind of transcript moment fits that format best
+3. Quality Bar -- what makes an extracted moment worth using vs. skipping, grounded in the fund's stated tone and forbidden language
+4. Process Checklist -- step-by-step for a team member repurposing a real transcript
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished framework -- no preamble beyond the note above.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the transcript repurposing framework described above.", a),
+    maxTokens: 1500,
+  },
+  {
+    id: "ai_interview_video",
+    label: "AI Interview Video — Script & Brief",
+    category: "video",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are producing a script and production brief for an AI-generated interview-style video (e.g. via HeyGen) featuring the fund's principal. Video generation is not yet connected in this system -- this produces the script and brief a video-generation tool would need, not the actual video.
+
+Begin with a note: "This is a script and production brief for future video generation (e.g. via HeyGen) -- no video is generated by this system yet."
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+STRUCTURE
+1. Video Concept -- one-line description of the video's angle/purpose
+2. Interview Q&A Script -- 4-6 interviewer questions with the principal's suggested talking-point answers (not verbatim, natural spoken register)
+3. Shot/Framing Notes -- suggested setting, framing, on-screen text overlay ideas (none containing fabricated data)
+4. Length Target -- suggested total runtime (60-120 seconds)
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished script and brief -- no preamble beyond the note above.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the AI interview video script and brief described above.", a),
+    maxTokens: 1500,
+  },
+  {
+    id: "short_clips",
+    label: "Short Clips — Selection Brief",
+    category: "video",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are producing a selection brief for short-form video clips (e.g. via Opus Clip or similar) that would be cut from a longer source video. Video/clipping tools are not yet connected in this system -- this produces guidance for a human or future tool to apply, not actual clips.
+
+Begin with a note: "This is a clip-selection framework, not applied to real source footage -- this system does not yet support video upload or clipping."
+
+STRUCTURE
+1. What Makes a Good Clip -- criteria for this fund's audience (concise, one clear idea, no hype, credible tone) grounded in the fund's stated communication style
+2. Suggested Clip Themes -- 4-5 types of moments worth clipping if they exist in source footage (e.g. "the fund's answer to the track-record objection," "a specific differentiator explained in one breath")
+3. Caption Style Guide -- how captions should read for this fund's brand voice
+4. Process Checklist -- steps to apply once real source footage exists
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished brief -- no preamble beyond the note above.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the short-clips selection brief described above.", a),
+    maxTokens: 1200,
+  },
+  {
+    id: "reels",
+    label: "Reel — Script & Brief",
+    category: "video",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `You are producing a script and production brief for a short vertical-format Reel/short-form video. Video generation is not yet connected in this system -- this produces the script and brief a production tool or team member would need.
+
+Begin with a note: "This is a script and production brief for future video production -- no video is generated by this system yet."
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+STRUCTURE
+1. Hook (first 2-3 seconds) -- the strongest single line to open on
+2. Beat-by-Beat Script -- short spoken/on-screen lines broken into beats, with bracketed visual suggestions between them
+3. Caption/On-Screen Text -- suggested overlay text
+4. Music/Mood Suggestion -- tone direction (no specific licensed track references)
+5. Length Target -- 15-30 seconds
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished script and brief -- no preamble beyond the note above.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the Reel script and brief described above.", a),
+    maxTokens: 1000,
+  },
+  {
+    id: "podcast_preparation",
+    label: "Podcast Preparation",
+    category: "content",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `Prepare a prep document for the fund's principal ahead of a podcast appearance -- talking points and likely questions, not a script to read verbatim.
+
+Do not invent statistics, deals, or claims not present in the knowledge base.
+
+STRUCTURE
+1. Key Messages -- 3-4 things to make sure land during the conversation, grounded in the fund's stated thesis and differentiators
+2. Likely Questions -- 6-8 questions a podcast host would plausibly ask, with suggested talking-point answers (not scripted)
+3. Stories/Examples to Have Ready -- moments worth referencing if the conversation allows (grounded only in documented facts)
+4. What to Avoid -- topics or claims to steer away from, per the fund's stated tone/forbidden language rules
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished prep document -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the podcast preparation document described above.", a),
+    maxTokens: 1800,
+  },
+  {
+    id: "book_outline",
+    label: "Book Outline",
+    category: "content",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `Draft an outline for a long-form thought-leadership book or extended publication authored by the fund's principal, built around the fund's market thesis and expertise.
+
+Do not invent statistics, case studies, or claims not present in the knowledge base -- the outline itself can propose chapter topics without requiring every detail to already exist in the knowledge base, but do not fabricate specific data points, quotes, or examples that would need to appear inside those chapters.
+
+STRUCTURE
+1. Working Title -- 2-3 title options
+2. Core Thesis -- the book's central argument in 2-3 sentences
+3. Target Reader -- who this book is for
+4. Chapter Outline -- 8-12 chapters, each with a one-line description of its argument/content
+5. Positioning -- how this book supports the fund's broader positioning (thought leadership, credibility, relationship-building)
+
+OUTPUT FORMAT
+Clear section headers. Output only the finished outline -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the book outline described above.", a),
+    maxTokens: 1800,
+  },
+  {
+    id: "interview_questions",
+    label: "Interview Questions",
+    category: "content",
+    tier: "marketing",
+    phase: "3c",
+    outputFormat: "docx",
+    systemPrompt:
+      `Prepare a set of well-structured interview questions for a journalist, podcast host, or event moderator to ask the fund's principal -- questions designed to draw out the fund's actual expertise and positioning, not generic questions.
+
+Do not invent statistics, deals, or claims not present in the knowledge base -- write questions that would let the principal reference real documented facts in their answers, not questions that presuppose facts not in the knowledge base.
+
+STRUCTURE
+Produce 10-12 questions grouped into 3 categories: Background & Philosophy (how the principal thinks about the market), Strategy & Differentiation (what makes this fund's approach distinct), Forward-Looking (where the fund and market are headed). Order questions to build naturally through a conversation.
+
+OUTPUT FORMAT
+Grouped by category with clear headers. Output only the finished question set -- no preamble.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase("Create the interview questions described above.", a),
+    maxTokens: 1200,
   },
 
 ];
