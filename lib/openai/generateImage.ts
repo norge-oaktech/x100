@@ -29,7 +29,7 @@ export async function generateImages(
     prompt,
     n,
     size,
-    quality: "medium",
+    quality: "high",
     output_format: "png",
   });
 
