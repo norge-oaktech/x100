@@ -868,21 +868,87 @@ Headline, then the full article body with subheadings. Output only the finished 
     maxTokens: 2000,
   },
   {
-    id: "social_content_calendar",
-    label: "Monthly Social Content Calendar",
+    id: "facebook_content_calendar",
+    label: "Facebook Monthly Content Calendar",
     category: "social",
     tier: "marketing",
     phase: "3a",
     outputFormat: "xlsx",
     supportsCalendarFile: true,
     systemPrompt:
-      `You are a social media strategist planning a full month of social content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post -- not read as prose -- so structure matters more than flowery writing.
+      `You are a social media strategist planning a full month of Facebook content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post -- not read as prose -- so structure matters more than flowery writing.
 
-Plan 3-4 posts per week across 4 weeks (12-16 posts total), spread across the platforms the fund actually uses per the knowledge base (LinkedIn is typically primary for institutional funds; only include X, Facebook, Bluesky, Reddit, or TikTok if the knowledge base's stated content/social approach supports it -- do not invent platform usage not implied by the fund's stated channels).
+Plan 3-4 Facebook posts per week across 4 weeks (12-16 posts total). Every post is for Facebook specifically -- do not mix in other platforms.
 
-Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly across every post -- direct, institutional, no hype.
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly -- direct, institutional, no hype, slightly more approachable/plain-language than LinkedIn given Facebook's broader audience.
 
-Vary the posts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective posts, differentiator posts, team/operator-led posts, portfolio-relevant commentary (only if the knowledge base supports specific claims), and soft relationship-building posts. Each post's copy should be complete and ready to publish, matching normal length conventions for its platform (LinkedIn: 150-250 words; X/Bluesky: under 280 characters; Facebook: 150-200 words; Reddit: conversational, subreddit-appropriate; TikTok: a short spoken script).
+Vary the posts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective posts, differentiator posts, team/operator-led posts, portfolio-relevant commentary (only if the knowledge base supports specific claims), and soft relationship-building posts. Each post's copy should be complete and ready to publish, 150-200 words, matching normal Facebook conventions.
+
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "posts": [
+    { "week": 1, "day": "Monday", "platform": "Facebook", "copy": "string", "imageBrief": "string" }
+  ]
+}
+"week" is 1-4. "day" is a weekday name. "platform" is always "Facebook". "copy" is the complete, ready-to-publish post text. "imageBrief" is a one-sentence description of what a supporting image for this specific post should depict (used to generate that image separately) -- grounded in the post's actual content, not generic.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Generate the complete monthly Facebook content calendar as JSON in the exact format described above.",
+        a
+      ),
+    maxTokens: 8000,
+  },
+  {
+    id: "instagram_content_calendar",
+    label: "Instagram Monthly Content Calendar",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "xlsx",
+    supportsCalendarFile: true,
+    systemPrompt:
+      `You are a social media strategist planning a full month of Instagram content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post -- not read as prose -- so structure matters more than flowery writing.
+
+Plan 3-4 Instagram posts per week across 4 weeks (12-16 posts total). Every post is for Instagram specifically -- do not mix in other platforms. Note: an institutional fund on Instagram should stay understated and credible, not chase engagement-bait or trend audio references -- this is a visual-first platform, but the tone stays institutional.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly.
+
+Vary the posts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective posts, differentiator posts, team/operator-led posts, portfolio-relevant commentary (only if the knowledge base supports specific claims), and soft relationship-building posts. Each post's copy is an Instagram caption: a short hook line, 2-4 sentences of substance, and 3-5 relevant hashtags at the end (no hashtag spam, no generic tags like #investing #finance -- specific to the fund's actual sector/geography/strategy).
+
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "posts": [
+    { "week": 1, "day": "Monday", "platform": "Instagram", "copy": "string", "imageBrief": "string" }
+  ]
+}
+"week" is 1-4. "day" is a weekday name. "platform" is always "Instagram". "copy" is the complete Instagram caption including hashtags. "imageBrief" is a one-sentence description of what the accompanying image should depict (used to generate that image separately) -- grounded in the post's actual content, not generic.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Generate the complete monthly Instagram content calendar as JSON in the exact format described above.",
+        a
+      ),
+    maxTokens: 8000,
+  },
+  {
+    id: "linkedin_content_calendar",
+    label: "LinkedIn Monthly Content Calendar",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "xlsx",
+    supportsCalendarFile: true,
+    systemPrompt:
+      `You are a social media strategist planning a full month of LinkedIn content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post -- not read as prose -- so structure matters more than flowery writing.
+
+Plan 3-4 LinkedIn posts per week across 4 weeks (12-16 posts total). Every post is for LinkedIn specifically -- do not mix in other platforms. LinkedIn is typically this kind of fund's primary channel, so this should be the most substantive/institutional of all the platform calendars.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly -- direct, institutional, thought-leadership register, no hype.
+
+Vary the posts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective posts, differentiator posts, team/operator-led posts, portfolio-relevant commentary (only if the knowledge base supports specific claims), and soft relationship-building posts. Each post's copy should be complete and ready to publish, 150-250 words, matching normal LinkedIn conventions (short paragraphs or light bulleted structure, minimal/no hashtag spam).
 
 OUTPUT FORMAT -- CRITICAL
 Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
@@ -891,11 +957,44 @@ Output ONLY valid JSON matching this exact shape, nothing before or after it, no
     { "week": 1, "day": "Monday", "platform": "LinkedIn", "copy": "string", "imageBrief": "string" }
   ]
 }
-"week" is 1-4. "day" is a weekday name. "platform" is one of the fund's actual channels. "copy" is the complete, ready-to-publish post text for that platform. "imageBrief" is a one-sentence description of what a supporting image for this specific post should depict (used to generate that image separately) -- grounded in the post's actual content, not generic.` +
+"week" is 1-4. "day" is a weekday name. "platform" is always "LinkedIn". "copy" is the complete, ready-to-publish post text. "imageBrief" is a one-sentence description of what a supporting image for this specific post should depict (used to generate that image separately) -- grounded in the post's actual content, not generic.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Generate the complete monthly content calendar as JSON in the exact format described above.",
+        "Generate the complete monthly LinkedIn content calendar as JSON in the exact format described above.",
+        a
+      ),
+    maxTokens: 8000,
+  },
+  {
+    id: "tiktok_content_calendar",
+    label: "TikTok Monthly Content Calendar",
+    category: "social",
+    tier: "marketing",
+    phase: "3a",
+    outputFormat: "xlsx",
+    supportsCalendarFile: true,
+    systemPrompt:
+      `You are a social media strategist planning a full month of TikTok content for a private investment fund. This output becomes a real downloadable spreadsheet with an image generated per post (used as a cover/thumbnail concept for each video) -- not read as prose -- so structure matters more than flowery writing.
+
+Plan 3-4 TikTok video concepts per week across 4 weeks (12-16 total). Every entry is for TikTok specifically -- do not mix in other platforms. This is unusual territory for an institutional fund -- keep it credible and educational in style (think "a founder explaining an idea clearly to camera"), not viral-trend energy or entertainment-style content.
+
+Do not invent statistics, deals, or claims not present in the knowledge base. Match the fund's stated communication style exactly, adapted to short spoken-video format.
+
+Vary the concepts -- do not repeat the same angle 12-16 times. Rotate through: market thesis/perspective explainers, differentiator explainers, team/operator-led moments, and soft relationship-building topics. Each entry's "copy" field is the short spoken script for that video (90-130 words, strong hook in the first line, natural spoken register).
+
+OUTPUT FORMAT -- CRITICAL
+Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
+{
+  "posts": [
+    { "week": 1, "day": "Monday", "platform": "TikTok", "copy": "string", "imageBrief": "string" }
+  ]
+}
+"week" is 1-4. "day" is a weekday name. "platform" is always "TikTok". "copy" is the complete spoken video script. "imageBrief" is a one-sentence description of what the video's cover/thumbnail image should depict (used to generate that image separately) -- grounded in the video's actual topic, not generic.` +
+      KB_GUARDRAILS,
+    buildUserPrompt: (a) =>
+      withKnowledgeBase(
+        "Generate the complete monthly TikTok content calendar as JSON in the exact format described above.",
         a
       ),
     maxTokens: 8000,
