@@ -6,6 +6,7 @@ import {
   ONBOARDING_SECTIONS,
   type OnboardingField,
 } from "@/config/onboardingSchema";
+import { buildQuestionnaireMarkdown } from "@/lib/onboarding/questionnaireMarkdown";
 import {
   saveSectionAction,
   completeOnboardingAction,
@@ -137,6 +138,18 @@ export function OnboardingWizard({
     setAnswers((prev) => ({ ...prev, [id]: value }));
   }
 
+  function handleDownloadMarkdown() {
+    const blob = new Blob([buildQuestionnaireMarkdown()], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "onboarding-questionnaire.md";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   function handleUploadCompletedFile(file: File) {
     setError(null);
     setUploadNotice(null);
@@ -235,11 +248,11 @@ export function OnboardingWizard({
           Prefer not to fill this out field-by-field?
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          Download the fillable PDF below — click into a field, or press
-          Tab to jump to the next question. If you&apos;d rather have an
-          AI do it, paste the questions into ChatGPT or Claude, save its
-          answers as a plain text file, and upload that below to prefill
-          this form.
+          Download the fillable PDF to answer it yourself — click into a
+          field, or press Tab to jump to the next question — then send it
+          back to us directly. Or download the plain-text version to paste
+          into ChatGPT or Claude, save its answers as a plain text file,
+          and upload that below to prefill this form.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
           <a
@@ -247,8 +260,15 @@ export function OnboardingWizard({
             download
             className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
           >
-            ⬇ Download questionnaire (PDF)
+            ⬇ Download questionnaire (PDF, fillable)
           </a>
+          <button
+            type="button"
+            onClick={handleDownloadMarkdown}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            ⬇ Download questions (for pasting into AI)
+          </button>
           <button
             type="button"
             disabled={isUploading}
