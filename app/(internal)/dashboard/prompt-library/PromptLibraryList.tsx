@@ -10,6 +10,7 @@ export interface PromptLibraryAsset {
   phase?: string;
   tier: "foundational" | "marketing";
   defaultSystemPrompt: string;
+  requiresStructuredJson: boolean;
 }
 
 export interface OverrideInfo {
@@ -160,6 +161,20 @@ export function PromptLibraryList({
                       <span className={`badge ${override ? "b-generating" : "b-draft"}`}>
                         {override ? "Custom" : "Default"}
                       </span>
+                      {asset.requiresStructuredJson && (
+                        <span
+                          className="badge"
+                          style={{
+                            marginLeft: 6,
+                            background: "rgba(251,191,36,0.1)",
+                            color: "#d4a017",
+                            borderColor: "rgba(251,191,36,0.3)",
+                          }}
+                          title="This asset's output is parsed as structured JSON to build a real file. See the warning when editing."
+                        >
+                          JSON output
+                        </span>
+                      )}
                     </td>
                     <td>
                       <button
@@ -176,6 +191,28 @@ export function PromptLibraryList({
                     <tr>
                       <td colSpan={5} style={{ background: "var(--bg-surface-raised)" }}>
                         <div style={{ padding: "12px 4px" }}>
+                          {asset.requiresStructuredJson && (
+                            <div
+                              className="card-sm mb12"
+                              style={{
+                                background: "rgba(251,191,36,0.08)",
+                                borderColor: "rgba(251,191,36,0.3)",
+                                fontSize: 12.5,
+                                lineHeight: 1.5,
+                              }}
+                            >
+                              <strong>This asset's output must stay valid JSON.</strong>{" "}
+                              Its content is parsed as structured data to build a real
+                              downloadable file (.pptx for decks, .xlsx for content
+                              calendars) — not read as prose. If your override drops the
+                              "output ONLY valid JSON in this exact shape" instructions
+                              and their example structure, the text generation will still
+                              succeed, but the file build will fail silently: no error
+                              shown to the user, just no download file on that asset.
+                              Keep the JSON-shape instructions from the default prompt
+                              intact and only change the content guidance around them.
+                            </div>
+                          )}
                           {override && (
                             <p className="tf" style={{ fontSize: 11, marginBottom: 8 }}>
                               Last edited by {override.updatedBy ?? "unknown"} on{" "}

@@ -58,6 +58,14 @@ export default async function PromptLibraryPage({
     phase: t.phase,
     tier: t.tier,
     defaultSystemPrompt: t.systemPrompt,
+    // Deck/calendar assets are parsed as structured JSON downstream (see
+    // lib/decks/buildPptx.ts, lib/calendar/buildCalendarXlsx.ts) to build a
+    // real .pptx/.xlsx file. An override that drops the "output ONLY valid
+    // JSON in this shape" instructions won't error loudly -- the text
+    // generation still succeeds, it's just prose instead of JSON, so the
+    // file build silently fails and the asset just never gets a download
+    // file. The editor needs to warn about this since nothing else will.
+    requiresStructuredJson: t.supportsDeckFile || t.supportsCalendarFile || false,
   }));
 
   return (

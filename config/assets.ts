@@ -13,12 +13,15 @@
 // Marketing-tier assets carry a `phase` matching the client's own
 // "Phase 2/3A/3B/3C Tool Stack" planning docs, used purely for UI grouping
 // (all phases unlock together once foundational is approved — there's no
-// sequential lock between phases themselves). Only Phase 2 (Fundraising &
-// Legal) and Phase 3A (Marketing Content) are built. Phase 3B (Sales
-// Enablement) and 3C (Video & Audio) are deferred — 3C in particular needs
-// real image/video/voice generation integrations (HeyGen, ElevenLabs, Opus
-// Clip, etc.) that this app doesn't have; that's a separate project, not
-// something addressable by writing more Claude prompts.
+// sequential lock between phases themselves). All four phases are built:
+// Phase 2 (Fundraising & Legal), 3A (Marketing Content), 3B (Sales
+// Enablement), and 3C (Video & Audio). 3C's three video-dependent assets
+// (AI Interview Video, Short Clips, Reels) are a deliberate exception —
+// they generate a text script + production brief as a clearly-labeled
+// placeholder, not actual video, since real video/voice generation
+// integrations (HeyGen, ElevenLabs, Opus Clip, etc.) aren't connected in
+// this app. That's a separate project, not something addressable by
+// writing more Claude prompts.
 //
 // Dropped from the prior flat asset list (not in the Phase 2/3A screenshots):
 // Cold Outreach Email (returns later under Phase 3B), Terms of Service,
@@ -133,28 +136,35 @@ export const ASSET_TEMPLATES: AssetTemplate[] = [
     outputFormat: "docx",
     tier: "foundational",
     systemPrompt:
-      `You are an institutional investor-relations strategist. Draft an Ideal Customer Profile (ICP) document identifying the fund's ideal prospective investor -- an internal reference document the fundraising team will use to prioritize outreach, not investor-facing copy.
+      `You are an audience research, ICP segmentation, and outreach-targeting analyst working for an institutional private markets fund. Draft an Ideal Customer Profile & Audience Targeting document -- an internal reference the fundraising team will use to prioritize outreach and build contact lists, not investor-facing copy.
 
-Do not invent named institutions, specific AUM figures for prospects, or investor counts not present in the knowledge base -- describe investor archetypes and characteristics instead of naming real organizations.
+Your job is to translate the fund's own stated positioning, strategy, and target-investor description (in the knowledge base below) into a structured, prioritized targeting profile -- the kind of thinking that goes into building an actual outreach/contact list, without referencing any specific spreadsheet, contact database, or external data source. Everything below must be derived only from the knowledge base -- do not invent named institutions, specific AUM figures for prospects, investor counts, or contact-data specifics not present in it.
+
+Before writing, identify from the knowledge base:
+1. What the fund does and who it's raising from
+2. The likely decision-maker or referral source (e.g. allocator, family office principal, RIA, institutional gatekeeper)
+3. Whether the audience is primarily investor-focused, executive-focused, industry/operator-focused, or referral/partner-focused
+4. The most relevant qualification signals and intent triggers -- why someone in this audience would engage now
+5. Any compliance or messaging cautions relevant to a fundraising/private-offering context (e.g. avoid language that guarantees returns or implies public solicitation)
 
 STRUCTURE
-1. Primary ICP Archetype -- a named, descriptive profile (e.g. "Regional Nordic Pension Allocator") synthesized from the fund's stated target investor type, motivations, and objections
-2. Firmographic Profile -- investor type, typical check size, geography, mandate fit, decision-making structure
-3. Psychographic Profile -- what this investor values, how they evaluate opportunities, risk tolerance, time horizon
-4. Motivations & Triggers -- why this investor allocates to funds like this one, based on the knowledge base's stated investor motivations
-5. Objections & Concerns -- likely hesitations and how the fund's positioning addresses them
-6. Where to Find Them -- channels, events, networks, referral sources consistent with the fund's stated fundraising approach
-7. Secondary ICP Archetype (if the knowledge base supports a distinct second segment; omit this section if not)
-8. Disqualifiers -- investor types that are a poor fit, to help the team prioritize
+1. Executive Summary -- 3-5 concise paragraphs: who the best-fit audience is, why they're relevant to this fund, which qualification signals matter most, and any important exclusions or targeting cautions
+2. Audience Profile -- a table with columns Category | Recommended Audience | Rationale, covering: Primary Audience, Secondary Audience, Best-Fit Decision-Maker/Investor, Relevant Industries or Sectors, Geographic Focus, High-Intent Signals, Low-Fit/Excluded Audiences
+3. Qualification Criteria -- the firmographic and psychographic characteristics that define a good-fit prospect for this fund specifically (check size, mandate fit, decision structure, risk tolerance, time horizon, what they value, how they evaluate opportunities), each marked Priority: High / Medium / Low based on how strongly the knowledge base supports it
+4. Motivations & Objections -- why this audience allocates to funds like this one, and the likely objections/hesitations with a one-line reframe for each, both grounded in the knowledge base's stated investor motivations and objections
+5. Strategic Targeting Recommendation -- the top 3-5 qualification signals to prioritize first, which should be combined for stronger qualification, which are secondary-only, and which risk false positives if used alone
+6. Suggested Audience Segments -- 3-5 practical segments, each with: Segment Name, Who They Are, Qualifying Signals, Why They Matter, Suggested Messaging Angle
+7. Where to Find Them -- channels, events, networks, and referral sources consistent with the fund's stated fundraising approach
+8. Assumptions & Gaps -- what was assumed due to missing information, what additional detail would improve targeting, and any areas where the knowledge base was unclear or conflicting
 
 OUTPUT FORMAT
-Use clear section headers. Keep each section concise and scannable (bullets over paragraphs where natural). Output only the finished document -- no preamble.
+Use clear section headers and tables where specified. Use business-development language, not marketing copy. Do not use emoji. Keep each Rationale/Priority-logic cell to 1-2 sentences. Output only the finished document -- no preamble.
 
-NOTE: this asset's prompt was drafted from standard IR/fundraising practice, not the client's own source instructions -- flag any output from this template for review.` +
+NOTE: this asset's prompt was adapted from the team's own audience-targeting methodology, applied here using only onboarding data (no external contact database or supplementary materials are available to this system) -- flag any output from this template for review.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
-      withKnowledgeBase("Draft the complete Ideal Customer Profile document described above.", a),
-    maxTokens: 4000,
+      withKnowledgeBase("Draft the complete ICP & Audience Targeting document described above.", a),
+    maxTokens: 5000,
   },
   {
     id: "brand_identity",
@@ -458,13 +468,13 @@ Clear section headers. Output only the finished summary -- no preamble beyond th
     outputFormat: "pptx",
     supportsDeckFile: true,
     systemPrompt:
-      `You are an elite private markets pitch deck strategist creating a 12-slide institutional fundraising pitch deck for HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
+      `You are an elite private markets pitch deck strategist writing the source content for a 12-slide institutional fundraising pitch deck for HNW investors, family offices, accredited investors, RIAs, and institutional allocators.
 
 Do not invent returns, performance, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or fund terms not present in the knowledge base -- omit or use compliant general wording instead.
 
-This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Every word you write is what appears on a real slide or in the real speaker-notes field, so keep on-slide text genuinely presentation-length (a few words to one short line per bullet), not paragraph-length.
+This output is design content, not the final deck -- it gets handed to Gamma (an AI design tool) which turns your text into an actual polished PowerPoint file with its own layout and visual design. Your job is to write clear, well-organized, presentation-ready source content -- one Markdown H2 section per slide -- not to lay out slides yourself.
 
-12-SLIDE STORYLINE (slide 1 = cover, slides 2-12 = content, in this order):
+12-SLIDE STORYLINE (in this order):
 1. Cover -- fund name / deck title, one-line positioning subtitle
 2. The Problem -- market inefficiency, fragmentation, why incumbents struggle
 3. The Solution -- what the fund does, operational model
@@ -479,18 +489,11 @@ This output becomes an actual PowerPoint file, built programmatically from your 
 12. The Ask / CTA -- capital raise objective, investor fit, next steps, data room invitation
 
 OUTPUT FORMAT -- CRITICAL
-Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
-{
-  "slides": [
-    { "title": "string", "kind": "cover", "subtitle": "string" },
-    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
-  ]
-}
-Rules for the JSON: slide 1 must have "kind": "cover" with a short "subtitle" (no bullets). Slides 2-12 must have "kind": "content" with 3-5 short "bullets" (each under ~12 words, no sub-bullets, no markdown formatting inside the string). Every content slide should include a "notes" field with 1-3 sentences of speaker-note context/talking points expanding on the bullets -- this is where any additional nuance, caveats, or data-point detail goes, since it won't be printed on the visible slide. Do not include a positioning summary, quality check, or any text outside the JSON structure itself.` +
+Output ONLY Markdown, nothing before or after it, no commentary. One "## " heading per slide, in the exact order above, using the slide name as the heading (e.g. "## The Problem"). Under each heading, write 3-5 short bullet points (each under ~15 words -- these become on-slide text, so presentation-length, not paragraph-length) using "- " bullets. After the bullets for slides 2-12, add one short paragraph labeled "Speaker notes:" with 1-3 sentences of additional context or talking points -- this is where nuance, caveats, or data-point detail goes, since it won't appear on the visible slide. The cover slide (## Cover) needs only a one-line subtitle, no bullets or notes. Do not include a title above the first "## Cover" heading, and do not include any text outside this structure.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Generate the complete 12-slide pitch deck as JSON in the exact format described above.",
+        "Write the complete 12-slide pitch deck source content as Markdown in the exact format described above.",
         a
       ),
     maxTokens: 6000,
@@ -754,9 +757,9 @@ The goal is a deck that educates first, then naturally positions the fund as a r
 
 TONE: allocator-to-allocator -- calm, institutional, precise. Avoid hype, urgency language, "once-in-a-lifetime" phrasing, and direct solicitation. The narrative should feel like "here is a framework for understanding the opportunity, and here is how this fits" -- not "here is why you should invest."
 
-This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Keep on-slide bullets genuinely presentation-length (a few words to one short line each), not paragraph-length.
+This output is design content, not the final deck -- it gets handed to Gamma (an AI design tool) which turns your text into an actual polished PowerPoint file with its own layout and visual design. Your job is to write clear, well-organized, presentation-ready source content -- one Markdown H2 section per slide -- not to lay out slides yourself.
 
-10-SLIDE STORYLINE (slide 1 = cover, slides 2-10 = content, in this order):
+10-SLIDE STORYLINE (in this order):
 1. Cover -- topic/title, one-line framing subtitle
 2. Context -- why this topic matters now
 3. Framework -- how sophisticated operators/investors should evaluate the category
@@ -772,18 +775,11 @@ CONTENT RULES
 Every claim must be traceable to the knowledge base -- if not verifiable, omit it or reframe as internal perspective, not fact.
 
 OUTPUT FORMAT -- CRITICAL
-Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
-{
-  "slides": [
-    { "title": "string", "kind": "cover", "subtitle": "string" },
-    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
-  ]
-}
-Slide 1 must be "kind": "cover" with a short "subtitle", no bullets. Slides 2-10 must be "kind": "content" with 3-5 short "bullets" (each under ~12 words, no markdown inside the string) and a "notes" field with 1-3 sentences of speaker-note context/evidence for that slide. Do not include a slide-by-slide outline, positioning summary, or any text outside the JSON.` +
+Output ONLY Markdown, nothing before or after it, no commentary. One "## " heading per slide, in the exact order above, using the slide name as the heading (e.g. "## Context"). Under each heading, write 3-5 short bullet points (each under ~15 words) using "- " bullets. After the bullets for slides 2-10, add one short paragraph labeled "Speaker notes:" with 1-3 sentences of additional evidence or context for that slide. The cover slide (## Cover) needs only a one-line subtitle, no bullets or notes. Do not include a title above the first "## Cover" heading, and do not include any text outside this structure.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Generate the complete educational event presentation as JSON in the exact format described above.",
+        "Write the complete educational event presentation source content as Markdown in the exact format described above.",
         a
       ),
     maxTokens: 6000,
@@ -803,9 +799,9 @@ The deck must feel intellectually credible, institutionally framed, commercially
 
 NARRATIVE STYLE: allocator-to-allocator, operator-led, institutional. Build conviction logically, demonstrate structural advantage, emphasize execution and downside protection. Avoid hype and emotional persuasion tactics.
 
-This output becomes an actual PowerPoint file, built programmatically from your JSON -- not read as prose. Keep on-slide bullets genuinely presentation-length (a few words to one short line each), not paragraph-length.
+This output is design content, not the final deck -- it gets handed to Gamma (an AI design tool) which turns your text into an actual polished PowerPoint file with its own layout and visual design. Your job is to write clear, well-organized, presentation-ready source content -- one Markdown H2 section per slide -- not to lay out slides yourself.
 
-10-SLIDE STORYLINE (slide 1 = cover, slides 2-10 = content, in this order):
+10-SLIDE STORYLINE (in this order):
 1. Cover -- fund/opportunity name, one-line positioning subtitle
 2. Opening / Thesis -- what is the opportunity and why does it matter now
 3. Market Dislocation or Structural Shift -- what inefficiency or change exists
@@ -821,18 +817,11 @@ CONTENT RULES
 Every claim must be sourced from the knowledge base, defensible, internally consistent. If a claim can't be verified, omit or soften it. Use language like "qualified investors," "disciplined opportunity," "investor alignment." Avoid "guaranteed," "safe investment," "massive returns," "limited time," "don't miss out."
 
 OUTPUT FORMAT -- CRITICAL
-Output ONLY valid JSON matching this exact shape, nothing before or after it, no markdown code fences, no commentary:
-{
-  "slides": [
-    { "title": "string", "kind": "cover", "subtitle": "string" },
-    { "title": "string", "kind": "content", "bullets": ["string", "string", "string"], "notes": "string" }
-  ]
-}
-Slide 1 must be "kind": "cover" with a short "subtitle", no bullets. Slides 2-10 must be "kind": "content" with 3-5 short "bullets" (each under ~12 words, no markdown inside the string) and a "notes" field with 1-3 sentences of speaker-note context for that slide. Do not include a slide-by-slide outline or any text outside the JSON.` +
+Output ONLY Markdown, nothing before or after it, no commentary. One "## " heading per slide, in the exact order above, using the slide name as the heading (e.g. "## Investment Strategy"). Under each heading, write 3-5 short bullet points (each under ~15 words) using "- " bullets. After the bullets for slides 2-10, add one short paragraph labeled "Speaker notes:" with 1-3 sentences of additional context for that slide. The cover slide (## Cover) needs only a one-line subtitle, no bullets or notes. Do not include a title above the first "## Cover" heading, and do not include any text outside this structure.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase(
-        "Generate the complete solicitation event presentation as JSON in the exact format described above.",
+        "Write the complete solicitation event presentation source content as Markdown in the exact format described above.",
         a
       ),
     maxTokens: 6000,
@@ -1863,7 +1852,8 @@ export function allFoundationalApproved(
 }
 
 // Ordered phase metadata for grouping marketing-tier assets in the UI.
-// 3b/3c are defined for future use but have no assets yet.
+// All four phases have assets (see the note at the top of this file for
+// 3C's video-placeholder exception).
 export const MARKETING_PHASES: { code: string; label: string }[] = [
   { code: "2", label: "Phase 2 — Fundraising & Legal" },
   { code: "3a", label: "Phase 3A — Marketing Content" },

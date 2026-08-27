@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { stripCodeFence } from "@/lib/assets/stripCodeFence";
 
 export interface CalendarPostData {
   week: number;
@@ -16,8 +17,11 @@ export interface CalendarData {
 // if the shape is invalid -- callers should catch this the same as any
 // other best-effort failure (the xlsx build is secondary to the text
 // content, which already succeeded).
+// Strips a stray markdown code fence first -- Claude sometimes wraps JSON
+// in ```json despite the system prompt saying not to, and a bare
+// JSON.parse would throw on that even though the JSON itself is valid.
 export function parseCalendarJson(content: string): CalendarData {
-  const parsed = JSON.parse(content);
+  const parsed = JSON.parse(stripCodeFence(content));
   if (!parsed || !Array.isArray(parsed.posts) || parsed.posts.length === 0) {
     throw new Error("Calendar JSON missing a non-empty posts array");
   }

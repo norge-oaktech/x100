@@ -1,12 +1,17 @@
 "use client";
 
-import { useMemo, useState, useTransition } from "react";
+import { useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   ONBOARDING_SECTIONS,
   type OnboardingField,
 } from "@/config/onboardingSchema";
-import { saveSectionAction, completeOnboardingAction } from "./actions";
+import { buildQuestionnaireMarkdown } from "@/lib/onboarding/questionnaireMarkdown";
+import {
+  saveSectionAction,
+  completeOnboardingAction,
+  parseUploadedQuestionnaireAction,
+} from "./actions";
 
 type Answers = Record<string, string | string[]>;
 
@@ -114,6 +119,9 @@ export function OnboardingWizard({
   });
   const [isPending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadNotice, setUploadNotice] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const section = ONBOARDING_SECTIONS[stepIndex];
   const isLastSection = stepIndex === ONBOARDING_SECTIONS.length - 1;
@@ -128,6 +136,54 @@ export function OnboardingWizard({
 
   function handleFieldChange(id: string, value: string | string[]) {
     setAnswers((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function handleDownloadQuestionnaire() {
+    const blob = new Blob([buildQuestionnaireMarkdown()], {
+      type: "text/markdown;charset=utf-8",
+    });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "onboarding-questionnaire.md";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  function handleUploadCompletedFile(file: File) {
+    setError(null);
+    setUploadNotice(null);
+    setIsUploading(true);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const text = typeof reader.result === "string" ? reader.result : "";
+      startTransition(async () => {
+        const result = await parseUploadedQuestionnaireAction(slug, text);
+        setIsUploading(false);
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        // Prefill from what was extracted, then land the client on the
+        // first still-incomplete section so they review/finish it in the
+        // normal wizard flow -- this never auto-submits.
+        setAnswers(result.answers ?? {});
+        setCompleted(new Set(result.completedSections ?? []));
+        const firstIncomplete = ONBOARDING_SECTIONS.findIndex(
+          (s) => !(result.completedSections ?? []).includes(s.id)
+        );
+        goToStep(firstIncomplete === -1 ? 0 : firstIncomplete);
+        setUploadNotice(
+          `Filled in ${result.matchedFieldCount} of ${result.totalFieldCount} questions from your file — review each section below and fill in anything missing before submitting.`
+        );
+      });
+    };
+    reader.onerror = () => {
+      setIsUploading(false);
+      setError("Could not read that file — try again.");
+    };
+    reader.readAsText(file);
   }
 
   function goToStep(index: number) {
@@ -187,6 +243,52 @@ export function OnboardingWizard({
 
   return (
     <div className="mx-auto max-w-2xl px-6 py-10">
+      <div className="mb-6 rounded-md border border-slate-200 bg-slate-50 p-4">
+        <p className="text-sm font-medium text-slate-800">
+          Prefer not to fill this out field-by-field?
+        </p>
+        <p className="mt-1 text-sm text-slate-500">
+          Download the questionnaire below — you can answer it yourself, or
+          paste it into ChatGPT or Claude and let it fill it out for you.
+          Then upload the completed file here and we&apos;ll prefill this
+          form so you only need to review it.
+        </p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button
+            type="button"
+            onClick={handleDownloadQuestionnaire}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
+          >
+            ⬇ Download questionnaire
+          </button>
+          <button
+            type="button"
+            disabled={isUploading}
+            onClick={() => fileInputRef.current?.click()}
+            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {isUploading ? "Reading your answers…" : "⬆ Upload completed file"}
+          </button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".txt,.md,text/plain,text/markdown"
+            className="hidden"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) handleUploadCompletedFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+        {uploadNotice && (
+          <p className="mt-3 text-sm text-emerald-700">{uploadNotice}</p>
+        )}
+        {error && (
+          <p className="mt-3 text-sm text-red-700">{error}</p>
+        )}
+      </div>
+
       <div className="mb-6">
         <div className="flex items-center justify-between text-xs text-slate-500">
           <span>

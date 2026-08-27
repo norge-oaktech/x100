@@ -4,9 +4,10 @@ import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
 import { generateImages } from "@/lib/openai/generateImage";
 import { buildDefaultImagePrompt, buildCalendarPostImagePrompt } from "@/lib/assets/buildImagePrompt";
-import { parseDeckJson, buildDeckPptx } from "@/lib/decks/buildPptx";
 import { parseCalendarJson, buildCalendarXlsx } from "@/lib/calendar/buildCalendarXlsx";
 import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
+import { stripCodeFence } from "@/lib/assets/stripCodeFence";
+import { generateGammaPptx } from "@/lib/gamma/generate";
 import type { GeneratedAsset } from "@/types/database";
 
 // The content calendar generates one image per post (12-16 calls, run in
@@ -121,13 +122,12 @@ export async function POST(request: Request) {
     // Safety net for HTML assets: Claude sometimes wraps code in a markdown
     // fence despite explicit instructions not to. A stray ```html at the
     // top would break a direct paste into GHL's Custom HTML element, so
-    // strip a leading/trailing fence if present.
+    // strip a leading/trailing fence if present. (Calendar JSON gets the
+    // same treatment inside parseCalendarJson, right before its own
+    // JSON.parse. Deck-file assets are Markdown now, not JSON -- see the
+    // deck-build block below.)
     if (template.outputFormat === "html") {
-      content = content
-        .trim()
-        .replace(/^```(?:html)?\s*\n?/i, "")
-        .replace(/\n?```\s*$/i, "")
-        .trim();
+      content = stripCodeFence(content);
     }
 
     await supabase
@@ -182,14 +182,20 @@ export async function POST(request: Request) {
       }
     }
 
-    // For deck-file assets, build the actual .pptx from the structured JSON
-    // Claude just generated. Best-effort, same pattern as images: a failure
-    // here does not fail the text generation, which already succeeded and
-    // is what the approval/review flow actually reads.
+    // For deck-file assets, hand Claude's Markdown outline to Gamma, which
+    // designs and exports the actual .pptx (see the note at the top of
+    // lib/gamma/generate.ts -- this path is written to Gamma's documented
+    // API but hasn't been runtime-verified against a live key yet).
+    // Best-effort, same pattern as images/pptx used to be: a failure here
+    // does not fail the text generation, which already succeeded and is
+    // what the approval/review flow actually reads.
     if (template.supportsDeckFile) {
       try {
-        const deck = parseDeckJson(content);
-        const pptxBuffer = await buildDeckPptx(deck);
+        const slideCount = (content.match(/^##\s/gm) ?? []).length || undefined;
+        const pptxBuffer = await generateGammaPptx(content, {
+          numCards: slideCount,
+          title: template.label,
+        });
         const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.pptx`;
 
         const { error: uploadError } = await supabase.storage
@@ -207,9 +213,10 @@ export async function POST(request: Request) {
           });
         }
       } catch {
-        // Swallow — text (JSON) generation already succeeded; a failed
-        // pptx build just means no download file yet. Most likely cause is
-        // Claude's JSON not parsing cleanly — Regenerate will retry both.
+        // Swallow — text (Markdown outline) generation already succeeded;
+        // a failed Gamma build just means no download file yet. Most
+        // likely causes: GAMMA_API_KEY missing/invalid, or the Gamma
+        // generation timed out — check server logs for the real error.
       }
     }
 

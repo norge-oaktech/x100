@@ -177,57 +177,94 @@ function CalendarPreview({ content }: { content: string }) {
   }
 }
 
-function DeckPreview({ content }: { content: string }) {
-  try {
-    const deck = JSON.parse(content) as {
-      slides: { title: string; kind?: string; subtitle?: string; bullets?: string[]; notes?: string }[];
-    };
-    if (!Array.isArray(deck.slides) || deck.slides.length === 0) throw new Error("empty");
+// Parses the "## Heading" / "- bullet" / "Speaker notes: ..." Markdown
+// outline Claude now writes for deck-file assets (see config/assets.ts) --
+// this is the same text handed to Gamma to design the actual .pptx, not a
+// separate format. Splits on H2 headings; the first section (Cover) has no
+// bullets/notes, every section after does.
+function parseDeckOutline(content: string): {
+  title: string;
+  isCover: boolean;
+  subtitle?: string;
+  bullets: string[];
+  notes?: string;
+}[] {
+  const sections = content
+    .split(/^##\s+/m)
+    .map((s) => s.trim())
+    .filter(Boolean);
 
-    return (
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-        {deck.slides.map((slide, i) => (
-          <div
-            key={i}
-            className="card-sm"
-            style={{ background: slide.kind === "cover" ? "var(--bg-surface-high)" : undefined }}
-          >
-            <div className="tf" style={{ fontSize: 10.5, marginBottom: 3 }}>
-              SLIDE {i + 1}
-              {slide.kind === "cover" ? " · COVER" : ""}
-            </div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
-              {slide.title}
-            </div>
-            {slide.subtitle && (
-              <div className="tm" style={{ fontSize: 12.5, marginTop: 2, fontStyle: "italic" }}>
-                {slide.subtitle}
-              </div>
-            )}
-            {slide.bullets && slide.bullets.length > 0 && (
-              <ul style={{ marginTop: 6, paddingLeft: 18, fontSize: 12.5, color: "var(--text-secondary)" }}>
-                {slide.bullets.map((b, bi) => (
-                  <li key={bi}>{b}</li>
-                ))}
-              </ul>
-            )}
-            {slide.notes && (
-              <div
-                className="tf"
-                style={{ fontSize: 11, marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}
-              >
-                Speaker notes: {slide.notes}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  } catch {
-    // Fall back to raw text if the JSON didn't parse for any reason —
+  return sections.map((section, i) => {
+    const lines = section.split("\n").map((l) => l.trim());
+    const title = lines[0] ?? "";
+    const isCover = i === 0;
+    const body = lines.slice(1).filter(Boolean);
+
+    const bullets: string[] = [];
+    let notes: string | undefined;
+    let subtitle: string | undefined;
+
+    for (const line of body) {
+      if (/^speaker notes:/i.test(line)) {
+        notes = line.replace(/^speaker notes:\s*/i, "");
+      } else if (line.startsWith("- ")) {
+        bullets.push(line.slice(2).trim());
+      } else if (isCover && !subtitle) {
+        subtitle = line;
+      }
+    }
+
+    return { title, isCover, subtitle, bullets, notes };
+  });
+}
+
+function DeckPreview({ content }: { content: string }) {
+  const slides = parseDeckOutline(content);
+  if (slides.length === 0) {
+    // Fall back to raw text if the outline didn't parse for any reason —
     // still readable, just not the nicer slide-card view.
     return <div className="output-val">{content}</div>;
   }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      {slides.map((slide, i) => (
+        <div
+          key={i}
+          className="card-sm"
+          style={{ background: slide.isCover ? "var(--bg-surface-high)" : undefined }}
+        >
+          <div className="tf" style={{ fontSize: 10.5, marginBottom: 3 }}>
+            SLIDE {i + 1}
+            {slide.isCover ? " · COVER" : ""}
+          </div>
+          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-primary)" }}>
+            {slide.title}
+          </div>
+          {slide.subtitle && (
+            <div className="tm" style={{ fontSize: 12.5, marginTop: 2, fontStyle: "italic" }}>
+              {slide.subtitle}
+            </div>
+          )}
+          {slide.bullets.length > 0 && (
+            <ul style={{ marginTop: 6, paddingLeft: 18, fontSize: 12.5, color: "var(--text-secondary)" }}>
+              {slide.bullets.map((b, bi) => (
+                <li key={bi}>{b}</li>
+              ))}
+            </ul>
+          )}
+          {slide.notes && (
+            <div
+              className="tf"
+              style={{ fontSize: 11, marginTop: 6, paddingTop: 6, borderTop: "1px solid var(--border)" }}
+            >
+              Speaker notes: {slide.notes}
+            </div>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function AssetCard({

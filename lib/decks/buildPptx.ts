@@ -1,4 +1,15 @@
 import PptxGenJS from "pptxgenjs";
+import { stripCodeFence } from "@/lib/assets/stripCodeFence";
+
+// SUPERSEDED: as of the Gamma integration (lib/gamma/generate.ts), the
+// generate route no longer calls parseDeckJson/buildDeckPptx -- deck-file
+// assets now hand Claude's Markdown outline straight to Gamma, which does
+// its own design and export. Left in place unused rather than deleted, in
+// case there's ever a reason to fall back to an in-house-rendered deck
+// (e.g. Gamma outage, or a client who doesn't want Gamma branding/hosting
+// involved) -- if reviving this path, note it still expects the old
+// { slides: [...] } JSON shape, which the current deck prompts no longer
+// produce.
 
 export interface DeckSlideData {
   title: string;
@@ -20,8 +31,11 @@ const ACCENT = "5B7FFF";
 // category asset. Throws if the shape is invalid -- callers should catch
 // this and treat it the same as any other best-effort failure (deck file
 // generation is secondary to the text content, which already succeeded).
+// Strips a stray markdown code fence first -- Claude sometimes wraps JSON
+// in ```json despite the system prompt saying not to, and a bare
+// JSON.parse would throw on that even though the JSON itself is valid.
 export function parseDeckJson(content: string): DeckData {
-  const parsed = JSON.parse(content);
+  const parsed = JSON.parse(stripCodeFence(content));
   if (!parsed || !Array.isArray(parsed.slides) || parsed.slides.length === 0) {
     throw new Error("Deck JSON missing a non-empty slides array");
   }

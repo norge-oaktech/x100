@@ -18,6 +18,8 @@ export function ApprovalsList({ items }: { items: PendingApprovalItem[] }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
 
   function handleReview(assetId: string, action: "approve" | "reject") {
     setError(null);
@@ -32,6 +34,34 @@ export function ApprovalsList({ items }: { items: PendingApprovalItem[] }) {
       if (!res.ok) {
         setError(data.error ?? "Request failed");
       }
+      setActiveId(null);
+      router.refresh();
+    });
+  }
+
+  function startEditing(item: PendingApprovalItem) {
+    setDraft(item.content);
+    setEditingId(item.id);
+    setExpandedId(item.id);
+    setError(null);
+  }
+
+  function handleSaveEdit(assetId: string) {
+    setError(null);
+    setActiveId(assetId);
+    startTransition(async () => {
+      const res = await fetch("/api/assets/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assetId, action: "save_edit", content: draft }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error ?? "Save failed");
+        setActiveId(null);
+        return;
+      }
+      setEditingId(null);
       setActiveId(null);
       router.refresh();
     });
@@ -86,6 +116,14 @@ export function ApprovalsList({ items }: { items: PendingApprovalItem[] }) {
                   <a href={`/dashboard/${item.projectId}`} className="btn btn-ghost btn-xs">
                     Open project
                   </a>
+                  {editingId !== item.id && (
+                    <button
+                      className="btn btn-ghost btn-xs"
+                      onClick={() => startEditing(item)}
+                    >
+                      Edit
+                    </button>
+                  )}
                   <button
                     className="btn btn-success btn-xs"
                     disabled={isBusy}
@@ -102,7 +140,38 @@ export function ApprovalsList({ items }: { items: PendingApprovalItem[] }) {
                   </button>
                 </div>
               </div>
-              {isExpanded && (
+              {isExpanded && editingId === item.id && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    paddingTop: 10,
+                    borderTop: "1px solid var(--border)",
+                  }}
+                >
+                  <textarea
+                    value={draft}
+                    onChange={(e) => setDraft(e.target.value)}
+                    className="field-input"
+                    style={{ width: "100%", minHeight: 260, fontFamily: "var(--font-body)" }}
+                  />
+                  <div className="fac gap8" style={{ marginTop: 8 }}>
+                    <button
+                      className="btn btn-primary btn-sm"
+                      disabled={isBusy}
+                      onClick={() => handleSaveEdit(item.id)}
+                    >
+                      {isBusy ? "Saving…" : "Save edits"}
+                    </button>
+                    <button
+                      className="btn btn-ghost btn-sm"
+                      onClick={() => setEditingId(null)}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+              {isExpanded && editingId !== item.id && (
                 <div
                   className="output-val"
                   style={{
