@@ -464,6 +464,26 @@ function AssetCard({
               </span>
             )}
 
+          {template.supportsHeygenVideo &&
+            (() => {
+              const video = documents?.filter((d) => d.format === "mp4").slice(-1)[0];
+              if (video) {
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+                    <video controls src={video.url} style={{ maxWidth: 360, borderRadius: 6 }} />
+                    <a href={video.url} download className="btn btn-primary btn-sm" style={{ alignSelf: "flex-start" }}>
+                      ⬇ Download video (.mp4)
+                    </a>
+                  </div>
+                );
+              }
+              return (
+                <span className="tf" style={{ fontSize: 11.5 }}>
+                  Rendering video via HeyGen… this typically takes a few minutes, refresh to check
+                </span>
+              );
+            })()}
+
           {template.tier === "foundational" && (
             <>
               {isEditing ? (

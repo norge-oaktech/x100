@@ -9,6 +9,7 @@ import { parseCalendarJson, buildCalendarXlsx } from "@/lib/calendar/buildCalend
 import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import { stripCodeFence } from "@/lib/assets/stripCodeFence";
 import { generateGammaPptx } from "@/lib/gamma/generate";
+import { createHeygenVideo, extractAvatarScript } from "@/lib/heygen/generate";
 import type { GeneratedAsset } from "@/types/database";
 
 // The content calendar generates one image per post (12-16 calls, run in
@@ -135,6 +136,22 @@ export async function POST(request: Request) {
       content = stripCodeFence(content);
     }
 
+    // Capture the spoken-only monologue BEFORE cleaning the display copy
+    // below — extractAvatarScript needs the raw <<<AVATAR_SCRIPT>>> markers
+    // intact, but nobody reading the stored/downloaded document should see
+    // those markers verbatim.
+    const avatarScriptForHeygen = template.supportsHeygenVideo
+      ? extractAvatarScript(content)
+      : null;
+    if (template.supportsHeygenVideo) {
+      content = content
+        .replace(
+          /<<<AVATAR_SCRIPT>>>/g,
+          "\n### Avatar Script (performed verbatim by the AI avatar)\n"
+        )
+        .replace(/<<<END_AVATAR_SCRIPT>>>/g, "");
+    }
+
     await supabase
       .from("generated_assets")
       .update({
@@ -222,6 +239,44 @@ export async function POST(request: Request) {
         // a failed Gamma build just means no download file yet. Most
         // likely causes: GAMMA_API_KEY missing/invalid, or the Gamma
         // generation timed out — check server logs for the real error.
+      }
+    }
+
+    // For script assets flagged supportsHeygenVideo, kick off an async
+    // HeyGen render of just the spoken monologue (extracted from the full
+    // text via the <<<AVATAR_SCRIPT>>> markers — see
+    // lib/heygen/generate.ts). This only STARTS the render and stores the
+    // returned video_id; the actual mp4 arrives later via
+    // app/api/webhooks/heygen/route.ts once HeyGen finishes (HeyGen's own
+    // docs say rendering can take several minutes, too long to hold this
+    // request open for). Same best-effort pattern as everything else here:
+    // a failure to even start the render doesn't touch the text generation,
+    // which already succeeded.
+    if (template.supportsHeygenVideo) {
+      try {
+        if (avatarScriptForHeygen) {
+          const videoId = await createHeygenVideo(avatarScriptForHeygen, {
+            title: template.label,
+            callbackId: assetRow.id,
+          });
+          await supabase
+            .from("generated_assets")
+            .update({ heygen_video_id: videoId })
+            .eq("id", assetRow.id);
+        } else {
+          console.error(
+            `HeyGen video skipped for asset ${assetRow.id}: no <<<AVATAR_SCRIPT>>> block found in generated content`
+          );
+        }
+      } catch (err) {
+        console.error(
+          `HeyGen video render failed to start for asset ${assetRow.id}:`,
+          err instanceof Error ? err.message : err
+        );
+        // Swallow — text generation already succeeded; a failed render
+        // kickoff just means no video for this asset. Most likely causes:
+        // HEYGEN_API_KEY missing/invalid, or no avatars/voices available
+        // on the account.
       }
     }
 
