@@ -66,6 +66,11 @@ export default async function PromptLibraryPage({
     // file build silently fails and the asset just never gets a download
     // file. The editor needs to warn about this since nothing else will.
     requiresStructuredJson: t.supportsDeckFile || t.supportsCalendarFile || false,
+    // Which provider actually generates this asset's text -- surfaced so
+    // an editor knows their prompt is going to a different model than
+    // most other assets (currently: the 6 foundational assets route to
+    // Perplexity for live web-search grounding; see lib/perplexity/generate.ts).
+    provider: t.provider ?? "anthropic",
   }));
 
   return (

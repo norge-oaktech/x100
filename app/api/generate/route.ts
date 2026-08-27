@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
+import { generatePerplexityContent, PERPLEXITY_MODEL } from "@/lib/perplexity/generate";
 import { generateImages } from "@/lib/openai/generateImage";
 import { buildDefaultImagePrompt, buildCalendarPostImagePrompt } from "@/lib/assets/buildImagePrompt";
 import { parseCalendarJson, buildCalendarXlsx } from "@/lib/calendar/buildCalendarXlsx";
@@ -113,10 +114,14 @@ export async function POST(request: Request) {
   }
 
   try {
-    let content = await generateAssetContent(
+    const generate =
+      template.provider === "perplexity" ? generatePerplexityContent : generateAssetContent;
+    const modelUsed = template.provider === "perplexity" ? PERPLEXITY_MODEL : ANTHROPIC_MODEL;
+
+    let content = await generate(
       effectiveSystemPrompt,
       userPrompt,
-      template.maxTokens
+      template.maxTokens ?? 4000
     );
 
     // Safety net for HTML assets: Claude sometimes wraps code in a markdown
@@ -135,7 +140,7 @@ export async function POST(request: Request) {
       .update({
         status: "complete",
         content,
-        model_used: ANTHROPIC_MODEL,
+        model_used: modelUsed,
         generated_at: new Date().toISOString(),
       })
       .eq("id", assetRow.id);

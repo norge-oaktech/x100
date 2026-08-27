@@ -69,6 +69,12 @@ export interface AssetTemplate {
   systemPrompt: string;
   buildUserPrompt: (answers: OnboardingAnswers) => string;
   maxTokens?: number;
+  // Which model provider generates this asset's text. Defaults to
+  // "anthropic" when omitted -- only set this when an asset deliberately
+  // needs a different provider's characteristics (e.g. "perplexity" for
+  // live web-search grounding). See lib/perplexity/generate.ts and
+  // lib/anthropic/generate.ts for the actual clients.
+  provider?: "anthropic" | "perplexity";
   // "foundational" = ICP/Brand Identity/etc — generated first, requires
   // approval, gates every "marketing" asset from being generated at all.
   // "marketing" = the client-facing deliverables (website, decks, etc.) —
@@ -135,6 +141,7 @@ export const ASSET_TEMPLATES: AssetTemplate[] = [
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are an audience research, ICP segmentation, and outreach-targeting analyst working for an institutional private markets fund. Draft an Ideal Customer Profile & Audience Targeting document -- an internal reference the fundraising team will use to prioritize outreach and build contact lists, not investor-facing copy.
 
@@ -172,6 +179,7 @@ NOTE: this asset's prompt was adapted from the team's own audience-targeting met
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are a brand strategist specializing in institutional financial services and private markets brands. Draft a Brand Identity document -- the strategic foundation other creative and copy work will be built on, not a visual style guide (that's a separate document).
 
@@ -200,6 +208,7 @@ NOTE: this asset's prompt was drafted from standard brand-strategy practice, not
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are a brand designer drafting practical Brand Guidelines for a private investment fund -- the reference document a copywriter or designer would check before producing any asset. This is distinct from Brand Identity (the strategic document) -- this one is operational and prescriptive.
 
@@ -228,6 +237,7 @@ NOTE: this asset's prompt was drafted from standard brand-guidelines practice, n
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are a messaging strategist for institutional private markets fundraising. Draft a Messaging Framework -- the core set of messages every other asset (website, decks, emails) should trace back to, for consistency across all downstream copy.
 
@@ -256,6 +266,7 @@ NOTE: this asset's prompt was drafted from standard messaging-strategy practice,
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are an investor-relations writer drafting case study content for a private investment fund, based strictly on the track record, prior exits, and portfolio information present in the knowledge base.
 
@@ -282,6 +293,7 @@ NOTE: this asset's prompt was drafted from standard IR practice, not the client'
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    provider: "perplexity",
     systemPrompt:
       `You are drafting a first-pass response to a standard institutional Due Diligence Questionnaire (DDQ) for a private investment fund, in the structure LPs and consultants typically expect (modeled on standard institutional DDQ categories such as those used by ILPA). This is a compliance-adjacent legal/operational document -- accuracy and honesty about gaps matter more than completeness.
 

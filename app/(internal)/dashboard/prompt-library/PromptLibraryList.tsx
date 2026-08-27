@@ -11,6 +11,7 @@ export interface PromptLibraryAsset {
   tier: "foundational" | "marketing";
   defaultSystemPrompt: string;
   requiresStructuredJson: boolean;
+  provider: "anthropic" | "perplexity";
 }
 
 export interface OverrideInfo {
@@ -173,6 +174,20 @@ export function PromptLibraryList({
                           title="This asset's output is parsed as structured JSON to build a real file. See the warning when editing."
                         >
                           JSON output
+                        </span>
+                      )}
+                      {asset.provider === "perplexity" && (
+                        <span
+                          className="badge"
+                          style={{
+                            marginLeft: 6,
+                            background: "rgba(91,127,255,0.1)",
+                            color: "#3f5fd9",
+                            borderColor: "rgba(91,127,255,0.3)",
+                          }}
+                          title="This asset generates via Perplexity (web-search-grounded), not Claude. Write its prompt with that in mind."
+                        >
+                          Perplexity
                         </span>
                       )}
                     </td>

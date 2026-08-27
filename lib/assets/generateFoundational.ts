@@ -1,5 +1,6 @@
 import { ASSET_TEMPLATES } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
+import { generatePerplexityContent, PERPLEXITY_MODEL } from "@/lib/perplexity/generate";
 import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -42,18 +43,18 @@ export async function generateFoundationalBatch(
       }
 
       try {
-        const content = await generateAssetContent(
-          systemPrompt,
-          userPrompt,
-          template.maxTokens
-        );
+        const generate =
+          template.provider === "perplexity" ? generatePerplexityContent : generateAssetContent;
+        const modelUsed = template.provider === "perplexity" ? PERPLEXITY_MODEL : ANTHROPIC_MODEL;
+
+        const content = await generate(systemPrompt, userPrompt, template.maxTokens ?? 4000);
 
         await supabase
           .from("generated_assets")
           .update({
             status: "complete",
             content,
-            model_used: ANTHROPIC_MODEL,
+            model_used: modelUsed,
             generated_at: new Date().toISOString(),
           })
           .eq("id", assetRow.id);
