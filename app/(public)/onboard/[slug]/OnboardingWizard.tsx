@@ -248,20 +248,11 @@ export function OnboardingWizard({
           Prefer not to fill this out field-by-field?
         </p>
         <p className="mt-1 text-sm text-slate-500">
-          Download the fillable PDF to answer it yourself — click into a
-          field, or press Tab to jump to the next question — then send it
-          back to us directly. Or download the plain-text version to paste
-          into ChatGPT or Claude, save its answers as a plain text file,
-          and upload that below to prefill this form.
+          Download the questions below and paste them into ChatGPT or
+          Claude — or answer them yourself — then save the answers as a
+          plain text file and upload it here to prefill this form.
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-3">
-          <a
-            href="/onboarding-questionnaire.pdf"
-            download
-            className="rounded-md border border-slate-300 bg-white px-3 py-1.5 text-sm text-slate-700 hover:bg-slate-100"
-          >
-            ⬇ Download questionnaire (PDF, fillable)
-          </a>
           <button
             type="button"
             onClick={handleDownloadMarkdown}
