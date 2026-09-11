@@ -492,6 +492,23 @@ function AssetCard({
               </span>
             )}
 
+          {template.supportsBrandedDocx &&
+            (() => {
+              const docxFile = documents?.filter((d) => d.format === "docx").slice(-1)[0];
+              if (docxFile) {
+                return (
+                  <a href={docxFile.url} download className="btn btn-primary btn-sm">
+                    ⬇ Download document (.docx)
+                  </a>
+                );
+              }
+              return (
+                <span className="tf" style={{ fontSize: 11.5 }}>
+                  Building formatted .docx… refresh in a moment if this doesn't appear
+                </span>
+              );
+            })()}
+
           {template.supportsHeygenVideo &&
             (() => {
               const video = documents?.filter((d) => d.format === "mp4").slice(-1)[0];

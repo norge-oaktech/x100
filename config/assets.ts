@@ -96,6 +96,13 @@ export interface AssetTemplate {
   // attaches asynchronously via webhook, same best-effort pattern as
   // supportsImage/supportsDeckFile.
   supportsHeygenVideo?: boolean;
+  // Whether this docx-format asset should get a real, cleanly formatted
+  // downloadable .docx built from its Markdown content (see
+  // lib/docx/buildStyledDocx.ts) -- headings, bold text, bullets, and any
+  // GFM pipe tables rendered as real Word tables. Without this flag,
+  // docx-format assets have no downloadable file at all -- only the plain
+  // text is ever shown in the dashboard.
+  supportsBrandedDocx?: boolean;
   // Preferred image dimensions when supportsImage is true. Defaults to
   // square if omitted.
   imageSize?: "1024x1024" | "1536x1024" | "1024x1536";
@@ -181,22 +188,41 @@ Before writing, identify from the knowledge base:
 
 STRUCTURE
 1. Executive Summary -- 3-5 concise paragraphs: who the best-fit audience is, why they're relevant to this fund, which qualification signals matter most, and any important exclusions or targeting cautions
-2. Audience Profile -- a table with columns Category | Recommended Audience | Rationale, covering: Primary Audience, Secondary Audience, Best-Fit Decision-Maker/Investor, Relevant Industries or Sectors, Geographic Focus, High-Intent Signals, Low-Fit/Excluded Audiences
+2. Audience Profile -- a table covering: Primary Audience, Secondary Audience, Best-Fit Decision-Maker/Investor, Relevant Industries or Sectors, Geographic Focus, High-Intent Signals, Low-Fit/Excluded Audiences
 3. Qualification Criteria -- the firmographic and psychographic characteristics that define a good-fit prospect for this fund specifically (check size, mandate fit, decision structure, risk tolerance, time horizon, what they value, how they evaluate opportunities), each marked Priority: High / Medium / Low based on how strongly the knowledge base supports it
 4. Motivations & Objections -- why this audience allocates to funds like this one, and the likely objections/hesitations with a one-line reframe for each, both grounded in the knowledge base's stated investor motivations and objections
 5. Strategic Targeting Recommendation -- the top 3-5 qualification signals to prioritize first, which should be combined for stronger qualification, which are secondary-only, and which risk false positives if used alone
-6. Suggested Audience Segments -- 3-5 practical segments, each with: Segment Name, Who They Are, Qualifying Signals, Why They Matter, Suggested Messaging Angle
+6. Suggested Audience Segments -- a table of 3-5 practical segments
 7. Where to Find Them -- channels, events, networks, and referral sources consistent with the fund's stated fundraising approach
 8. Assumptions & Gaps -- what was assumed due to missing information, what additional detail would improve targeting, and any areas where the knowledge base was unclear or conflicting
 
-OUTPUT FORMAT
-Use clear section headers and tables where specified. Use business-development language, not marketing copy. Do not use emoji. Keep each Rationale/Priority-logic cell to 1-2 sentences. Output only the finished document -- no preamble.
+OUTPUT FORMAT -- CRITICAL
+Use "## " for each of the 8 section headers above (numbered, e.g. "## 2. Audience Profile"). Sections 2 and 6 MUST be real GitHub-Flavored-Markdown pipe tables -- every row starting and ending with "|", and a "|---|---|...|" separator line directly under the header row. This gets parsed into an actual Word table in the downloadable document, so malformed table syntax will break the formatting -- follow this exactly:
+
+## 2. Audience Profile
+| Category | Recommended Audience | Rationale |
+|---|---|---|
+| Primary Audience | ... | ... |
+| Secondary Audience | ... | ... |
+| Best-Fit Decision-Maker/Investor | ... | ... |
+| Relevant Industries or Sectors | ... | ... |
+| Geographic Focus | ... | ... |
+| High-Intent Signals | ... | ... |
+| Low-Fit/Excluded Audiences | ... | ... |
+
+## 6. Suggested Audience Segments
+| Segment Name | Who They Are | Qualifying Signals | Why They Matter | Suggested Messaging Angle |
+|---|---|---|---|---|
+| ... | ... | ... | ... | ... |
+
+All other sections are plain paragraphs (and "- " bullets where natural), not tables. Use business-development language, not marketing copy. Do not use emoji. Keep each table cell to 1-2 sentences. Output only the finished document -- no preamble.
 
 NOTE: this asset's prompt was adapted from the team's own audience-targeting methodology, applied here using only onboarding data (no external contact database or supplementary materials are available to this system) -- flag any output from this template for review.` +
       KB_GUARDRAILS,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete ICP & Audience Targeting document described above.", a),
-    maxTokens: 5000,
+    maxTokens: 5500,
+    supportsBrandedDocx: true,
   },
   {
     id: "brand_identity",

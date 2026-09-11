@@ -2,6 +2,7 @@ import { ASSET_TEMPLATES } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
 import { generatePerplexityContent, PERPLEXITY_MODEL } from "@/lib/perplexity/generate";
 import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
+import { buildStyledDocx } from "@/lib/docx/buildStyledDocx";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 type OnboardingAnswers = Record<string, string | string[]>;
@@ -65,6 +66,39 @@ export async function generateFoundationalBatch(
             generated_at: new Date().toISOString(),
           })
           .eq("id", assetRow.id);
+
+        // Same best-effort docx-build step as app/api/generate/route.ts --
+        // duplicated here (not shared as a single call site) because this
+        // batch pipeline is the one that actually runs for ICP on its
+        // first-ever generation (onboarding submission / "Generate Stage 1"),
+        // not the individual-asset route. A failure here never touches the
+        // text generation above, which already succeeded.
+        if (template.supportsBrandedDocx) {
+          try {
+            const docxBuffer = await buildStyledDocx(template.label, content);
+            const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.docx`;
+
+            const { error: uploadError } = await supabase.storage
+              .from("asset-documents")
+              .upload(storagePath, docxBuffer, {
+                contentType:
+                  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+              });
+
+            if (!uploadError) {
+              await supabase.from("asset_files").insert({
+                generated_asset_id: assetRow.id,
+                format: "docx",
+                storage_path: storagePath,
+              });
+            }
+          } catch (err) {
+            console.error(
+              `Branded docx build failed for asset ${assetRow.id}:`,
+              err instanceof Error ? err.message : err
+            );
+          }
+        }
 
         return { assetKey: template.id, success: true as const };
       } catch (err) {

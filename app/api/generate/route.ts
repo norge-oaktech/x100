@@ -10,6 +10,7 @@ import { resolveSystemPrompt } from "@/lib/assets/resolvePrompt";
 import { stripCodeFence } from "@/lib/assets/stripCodeFence";
 import { generateGammaPptx } from "@/lib/gamma/generate";
 import { createHeygenVideo, extractAvatarScript } from "@/lib/heygen/generate";
+import { buildStyledDocx } from "@/lib/docx/buildStyledDocx";
 import type { GeneratedAsset } from "@/types/database";
 
 // The content calendar generates one image per post (12-16 calls, run in
@@ -302,6 +303,41 @@ export async function POST(request: Request) {
         // kickoff just means no video for this asset. Most likely causes:
         // HEYGEN_API_KEY missing/invalid, or no avatars/voices available
         // on the account.
+      }
+    }
+
+    // For assets flagged supportsBrandedDocx, build a real, cleanly
+    // formatted .docx from the Markdown content (see
+    // lib/docx/buildStyledDocx.ts) so there's an actual downloadable file,
+    // not just plain text in the dashboard. Same best-effort pattern as
+    // every other file-build step here.
+    if (template.supportsBrandedDocx) {
+      try {
+        const docxBuffer = await buildStyledDocx(template.label, content);
+        const storagePath = `${projectId}/${template.id}/${crypto.randomUUID()}.docx`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("asset-documents")
+          .upload(storagePath, docxBuffer, {
+            contentType:
+              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          });
+
+        if (!uploadError) {
+          await supabase.from("asset_files").insert({
+            generated_asset_id: assetRow.id,
+            format: "docx",
+            storage_path: storagePath,
+          });
+        }
+      } catch (err) {
+        console.error(
+          `Branded docx build failed for asset ${assetRow.id}:`,
+          err instanceof Error ? err.message : err
+        );
+        // Swallow — text generation already succeeded; a failed docx build
+        // just means no formatted download yet, same as every other
+        // secondary file-build step.
       }
     }
 
