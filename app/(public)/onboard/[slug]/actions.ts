@@ -126,15 +126,19 @@ export async function completeOnboardingAction(slug: string) {
     .maybeSingle();
 
   if (updatedProject && response?.answers) {
-    // Auto-generate the foundational documents now that onboarding is
-    // complete. Awaited deliberately (not fire-and-forget) so a serverless
-    // function teardown can't kill it mid-generation -- the client's
-    // "Submit" button shows a loading state for the duration.
+    // Auto-generate Stage 1 of the foundational documents (ICP, Brand
+    // Identity) now that onboarding is complete. Stage 2 (Brand Guidelines,
+    // Messaging Framework) only generates once Stage 1 is fully approved --
+    // see the auto-trigger in app/api/assets/review/route.ts. Awaited
+    // deliberately (not fire-and-forget) so a serverless function teardown
+    // can't kill it mid-generation -- the client's "Submit" button shows a
+    // loading state for the duration.
     await generateFoundationalBatch(
       supabase,
       project.id,
       response.answers,
-      project.client_id ?? null
+      project.client_id ?? null,
+      1
     );
 
     await supabase

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   ASSET_TEMPLATES,
   allFoundationalApproved,
+  stage1FoundationalApproved,
   isRequiredFoundational,
   MARKETING_PHASES,
   type AssetTemplate,
@@ -299,12 +300,39 @@ function AssetCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState(existing?.content ?? "");
   const [copied, setCopied] = useState(false);
+  const [isCheckingHeygen, setIsCheckingHeygen] = useState(false);
+  const [heygenMessage, setHeygenMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   function handleCopy() {
     if (!existing?.content) return;
     navigator.clipboard.writeText(existing.content);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
+  }
+
+  async function handleCheckHeygenStatus() {
+    if (!existing) return;
+    setIsCheckingHeygen(true);
+    setHeygenMessage(null);
+    try {
+      const res = await fetch("/api/assets/check-heygen-status", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ generatedAssetId: existing.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setHeygenMessage(data.error ?? "Check failed");
+      } else if (data.attached) {
+        router.refresh();
+      } else {
+        setHeygenMessage(data.message ?? "Not ready yet.");
+      }
+    } catch {
+      setHeygenMessage("Check failed — try again.");
+    }
+    setIsCheckingHeygen(false);
   }
 
   const status = isGenerating ? "generating" : existing?.status;
@@ -478,9 +506,28 @@ function AssetCard({
                 );
               }
               return (
-                <span className="tf" style={{ fontSize: 11.5 }}>
-                  Rendering video via HeyGen… this typically takes a few minutes, refresh to check
-                </span>
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%" }}>
+                  <span className="tf" style={{ fontSize: 11.5 }}>
+                    Rendering video via HeyGen… this typically takes a few
+                    minutes. If it's been longer than that, the webhook may
+                    not be registered — click Check status to look directly.
+                  </span>
+                  <div className="fac gap8">
+                    <button
+                      type="button"
+                      className="btn btn-ghost btn-xs"
+                      disabled={isCheckingHeygen}
+                      onClick={handleCheckHeygenStatus}
+                    >
+                      {isCheckingHeygen ? "Checking…" : "Check status"}
+                    </button>
+                    {heygenMessage && (
+                      <span className="tf" style={{ fontSize: 11.5 }}>
+                        {heygenMessage}
+                      </span>
+                    )}
+                  </div>
+                </div>
               );
             })()}
 
@@ -567,9 +614,13 @@ export function GenerateAssetPanel({
 
   const assetsByKey = new Map(initialAssets.map((a) => [a.asset_key, a]));
   const foundationalTemplates = ASSET_TEMPLATES.filter((t) => t.tier === "foundational");
+  const stage1Templates = foundationalTemplates.filter((t) => t.foundationalStage === 1);
+  const stage2Templates = foundationalTemplates.filter((t) => t.foundationalStage === 2);
   const marketingTemplates = ASSET_TEMPLATES.filter((t) => t.tier === "marketing");
   const foundationalApproved = allFoundationalApproved(initialAssets);
-  const anyFoundationalGenerated = foundationalTemplates.some((t) => assetsByKey.has(t.id));
+  const stage1Approved = stage1FoundationalApproved(initialAssets);
+  const anyStage1Generated = stage1Templates.some((t) => assetsByKey.has(t.id));
+  const anyStage2Generated = stage2Templates.some((t) => assetsByKey.has(t.id));
 
   // Only include phases that actually have assets defined (3b/3c are empty
   // until those phases are built).
@@ -613,14 +664,14 @@ export function GenerateAssetPanel({
     );
   }
 
-  function handleGenerateAllFoundational() {
+  function handleGenerateFoundationalStage(stage: 1 | 2) {
     setError(null);
     setIsBatchPending(true);
     startTransition(async () => {
       const res = await fetch("/api/generate-foundational", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ projectId }),
+        body: JSON.stringify({ projectId, stage }),
       });
       const data = await res.json();
       if (!res.ok && res.status !== 207) {
@@ -644,10 +695,12 @@ export function GenerateAssetPanel({
   const locked = !onboardingComplete || !foundationalApproved;
   const [showLockedDetails, setShowLockedDetails] = useState(false);
 
-  const requiredApprovedCount = foundationalTemplates.filter(
-    (t) => isRequiredFoundational(t.id) && assetsByKey.get(t.id)?.approval_status === "approved"
+  const stage1ApprovedCount = stage1Templates.filter(
+    (t) => assetsByKey.get(t.id)?.approval_status === "approved"
   ).length;
-  const requiredTotal = foundationalTemplates.filter((t) => isRequiredFoundational(t.id)).length;
+  const stage2ApprovedCount = stage2Templates.filter(
+    (t) => assetsByKey.get(t.id)?.approval_status === "approved"
+  ).length;
 
   return (
     <div className="mb20">
@@ -665,19 +718,19 @@ export function GenerateAssetPanel({
         </div>
       )}
 
-      {/* ── Step 1: Foundational Documents ───────────────────────── */}
+      {/* ── Step 1: Foundational Documents — Stage 1 ─────────────── */}
       {(section === "foundational" || section === "both") && (
       <div className="section-block">
         <div className="section-block-header">
           <span className="step-num">1</span>
           <div style={{ flex: 1 }}>
-            <div className="section-block-title">Foundational Documents</div>
+            <div className="section-block-title">Foundational Documents — Stage 1</div>
             <div className="section-block-sub">
-              Require approval · {requiredApprovedCount}/{requiredTotal} required approved
+              ICP + Brand Identity · Require approval · {stage1ApprovedCount}/{stage1Templates.length} approved
             </div>
           </div>
           <button
-            onClick={handleGenerateAllFoundational}
+            onClick={() => handleGenerateFoundationalStage(1)}
             disabled={!hasOnboardingResponses || isBatchPending || isPending}
             title={
               !hasOnboardingResponses
@@ -687,15 +740,15 @@ export function GenerateAssetPanel({
             className="btn btn-primary btn-xs"
           >
             {isBatchPending
-              ? "Generating all…"
-              : anyFoundationalGenerated
-              ? "⚡ Regenerate all"
-              : "⚡ Generate all foundational"}
+              ? "Generating…"
+              : anyStage1Generated
+              ? "⚡ Regenerate Stage 1"
+              : "⚡ Generate Stage 1"}
           </button>
         </div>
         <div className="section-block-body">
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-            {foundationalTemplates.map((template) => {
+            {stage1Templates.map((template) => {
               const existing = assetsByKey.get(template.id);
               const isGeneratingThis =
                 (isPending && activeKey === template.id) || isBatchPending;
@@ -716,6 +769,60 @@ export function GenerateAssetPanel({
             })}
           </div>
         </div>
+      </div>
+      )}
+
+      {/* ── Step 1b: Foundational Documents — Stage 2 ────────────── */}
+      {(section === "foundational" || section === "both") && (
+      <div className="section-block">
+        <div className={`section-block-header${stage1Approved ? "" : " locked"}`}>
+          <span className={`step-num${stage1Approved ? "" : " dimmed"}`}>1b</span>
+          <div style={{ flex: 1 }}>
+            <div className="section-block-title">Foundational Documents — Stage 2</div>
+            <div className="section-block-sub">
+              {stage1Approved
+                ? `Brand Guidelines + Messaging Framework · Require approval · ${stage2ApprovedCount}/${stage2Templates.length} approved`
+                : "Locked until both Stage 1 documents (ICP, Brand Identity) are approved"}
+            </div>
+          </div>
+          {stage1Approved && (
+            <button
+              onClick={() => handleGenerateFoundationalStage(2)}
+              disabled={isBatchPending || isPending}
+              className="btn btn-primary btn-xs"
+            >
+              {isBatchPending
+                ? "Generating…"
+                : anyStage2Generated
+                ? "⚡ Regenerate Stage 2"
+                : "⚡ Generate Stage 2"}
+            </button>
+          )}
+        </div>
+        {stage1Approved && (
+          <div className="section-block-body">
+            <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+              {stage2Templates.map((template) => {
+                const existing = assetsByKey.get(template.id);
+                const isGeneratingThis =
+                  (isPending && activeKey === template.id) || isBatchPending;
+                return (
+                  <AssetCard
+                    key={template.id}
+                    template={template}
+                    existing={existing}
+                    isGenerating={isGeneratingThis}
+                    disabled={false}
+                    onGenerate={() => handleGenerate(template.id)}
+                    onApprove={() => existing && handleReview(existing.id, "approve")}
+                    onReject={() => existing && handleReview(existing.id, "reject")}
+                    onSaveEdit={(content) => existing && handleReview(existing.id, "save_edit", content)}
+                  />
+                );
+              })}
+            </div>
+          </div>
+        )}
       </div>
       )}
 
@@ -744,7 +851,7 @@ export function GenerateAssetPanel({
                 {marketingTemplates.length} marketing assets across{" "}
                 {phaseGroups.length} phases (fundraising &amp; legal docs,
                 website, social, and more) will unlock once all{" "}
-                {requiredTotal} required foundational documents above are
+                {foundationalTemplates.length} foundational documents above are
                 approved.
               </span>
               <button

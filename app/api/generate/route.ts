@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { getAssetTemplate, allFoundationalApproved } from "@/config/assets";
+import { getAssetTemplate, allFoundationalApproved, stage1FoundationalApproved } from "@/config/assets";
 import { generateAssetContent, ANTHROPIC_MODEL } from "@/lib/anthropic/generate";
 import { generatePerplexityContent, PERPLEXITY_MODEL } from "@/lib/perplexity/generate";
 import { generateImages } from "@/lib/openai/generateImage";
@@ -84,7 +84,32 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error:
-            "This asset is locked until all 6 foundational documents (ICP, Brand Identity, Brand Guidelines, Messaging Framework, Case Studies, DDQ) are approved.",
+            "This asset is locked until all foundational documents (ICP, Brand Identity, Brand Guidelines, Messaging Framework) are approved.",
+        },
+        { status: 403 }
+      );
+    }
+  }
+
+  // Stage 2 foundational assets (Brand Guidelines, Messaging Framework)
+  // are normally only ever generated automatically once Stage 1 (ICP,
+  // Brand Identity) is fully approved -- see the auto-trigger in
+  // app/api/assets/review/route.ts. This blocks someone from generating a
+  // Stage 2 asset directly/early by calling this route with its assetKey
+  // before that's happened, same server-side-not-just-UI principle as the
+  // marketing-tier gate above.
+  if (template.tier === "foundational" && template.foundationalStage === 2) {
+    const { data: existingAssets } = await supabase
+      .from("generated_assets")
+      .select("asset_key, approval_status")
+      .eq("project_id", projectId)
+      .returns<Pick<GeneratedAsset, "asset_key" | "approval_status">[]>();
+
+    if (!stage1FoundationalApproved(existingAssets ?? [])) {
+      return NextResponse.json(
+        {
+          error:
+            "This asset is locked until both Stage 1 documents (ICP, Brand Identity) are approved.",
         },
         { status: 403 }
       );

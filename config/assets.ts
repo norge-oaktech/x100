@@ -108,27 +108,45 @@ export interface AssetTemplate {
   // post embedded) from this automatically.
   supportsCalendarFile?: boolean;
   supportsDeckFile?: boolean;
+  // Only meaningful for tier: "foundational". Stage 1 (ICP, Brand
+  // Identity) generates automatically once onboarding is submitted and
+  // must be fully approved before Stage 2 (Brand Guidelines, Messaging
+  // Framework) is even generated -- see the stage-2 auto-trigger in
+  // app/api/assets/review/route.ts and the server-side stage gate in
+  // app/api/generate/route.ts. Marketing-tier assets stay locked until
+  // both stages are approved (see allFoundationalApproved below).
+  foundationalStage?: 1 | 2;
 }
 
-// All foundational assets — generated together as a batch, all show
-// approve/reject in the UI. Only REQUIRED_FOUNDATIONAL_ASSET_IDS gate
-// marketing-tier generation; Case Studies and DDQ still go through review
-// but don't block anything downstream.
+// All foundational assets — every one of them required (no more "goes
+// through review but doesn't gate" carve-out; that used to apply to Case
+// Studies/DDQ, which have been removed entirely). Generated and approved
+// in two stages, not all at once: Stage 1 (ICP, Brand Identity) must be
+// fully approved before Stage 2 (Brand Guidelines, Messaging Framework) is
+// even generated. Marketing-tier assets stay locked until every id below
+// is approved, i.e. both stages complete.
 export const FOUNDATIONAL_ASSET_IDS = [
   "icp_generation",
   "brand_identity",
   "brand_guidelines",
   "messaging_framework",
-  "case_studies",
-  "ddq_drafting",
 ] as const;
 
-export const REQUIRED_FOUNDATIONAL_ASSET_IDS = [
+export const STAGE_1_FOUNDATIONAL_ASSET_IDS = [
   "icp_generation",
   "brand_identity",
+] as const;
+
+export const STAGE_2_FOUNDATIONAL_ASSET_IDS = [
   "brand_guidelines",
   "messaging_framework",
 ] as const;
+
+// Kept as an alias of FOUNDATIONAL_ASSET_IDS -- every remaining
+// foundational asset is required now, but this name is referenced
+// throughout the app (gating checks, UI labels) and renaming it everywhere
+// isn't worth the diff.
+export const REQUIRED_FOUNDATIONAL_ASSET_IDS = FOUNDATIONAL_ASSET_IDS;
 
 export const KB_GUARDRAILS = `
 Use only the fund knowledge base provided below as your source of truth. Do not invent returns, performance figures, track records, AUM, portfolio companies, investor counts, team history, market statistics, financial projections, or legal/fund structure details that are not present in the knowledge base. If a required detail is missing, omit it, write "Not specified," or use compliant general wording -- do not fabricate a placeholder value.`;
@@ -147,6 +165,7 @@ export const ASSET_TEMPLATES: AssetTemplate[] = [
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    foundationalStage: 1,
     provider: "perplexity",
     systemPrompt:
       `You are an audience research, ICP segmentation, and outreach-targeting analyst working for an institutional private markets fund. Draft an Ideal Customer Profile & Audience Targeting document -- an internal reference the fundraising team will use to prioritize outreach and build contact lists, not investor-facing copy.
@@ -185,6 +204,7 @@ NOTE: this asset's prompt was adapted from the team's own audience-targeting met
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    foundationalStage: 1,
     provider: "perplexity",
     systemPrompt:
       `You are a brand strategist specializing in institutional financial services and private markets brands. Draft a Brand Identity document -- the strategic foundation other creative and copy work will be built on, not a visual style guide (that's a separate document).
@@ -214,6 +234,7 @@ NOTE: this asset's prompt was drafted from standard brand-strategy practice, not
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    foundationalStage: 2,
     provider: "perplexity",
     systemPrompt:
       `You are a brand designer drafting practical Brand Guidelines for a private investment fund -- the reference document a copywriter or designer would check before producing any asset. This is distinct from Brand Identity (the strategic document) -- this one is operational and prescriptive.
@@ -243,6 +264,7 @@ NOTE: this asset's prompt was drafted from standard brand-guidelines practice, n
     category: "foundational",
     outputFormat: "docx",
     tier: "foundational",
+    foundationalStage: 2,
     provider: "perplexity",
     systemPrompt:
       `You are a messaging strategist for institutional private markets fundraising. Draft a Messaging Framework -- the core set of messages every other asset (website, decks, emails) should trace back to, for consistency across all downstream copy.
@@ -265,66 +287,6 @@ NOTE: this asset's prompt was drafted from standard messaging-strategy practice,
     buildUserPrompt: (a) =>
       withKnowledgeBase("Draft the complete Messaging Framework document described above.", a),
     maxTokens: 6000,
-  },
-  {
-    id: "case_studies",
-    label: "Case Studies",
-    category: "foundational",
-    outputFormat: "docx",
-    tier: "foundational",
-    provider: "perplexity",
-    systemPrompt:
-      `You are an investor-relations writer drafting case study content for a private investment fund, based strictly on the track record, prior exits, and portfolio information present in the knowledge base.
-
-CRITICAL: if the knowledge base does not contain specific, named prior investments, exits, or portfolio company outcomes, do NOT invent them. In that situation, output a single section titled "Case Studies -- Insufficient Source Data" explaining exactly what specific information (company names, deal details, outcomes, dates) would be needed from the fund to draft real case studies, and stop there. Do not produce a fabricated or "illustrative" case study to fill the gap.
-
-If the knowledge base DOES contain specific prior investment or exit details, structure each case study as:
-1. Situation -- the opportunity/context at the time of investment
-2. Approach -- what the fund/team did
-3. Outcome -- the result, using only figures present in the knowledge base
-4. Relevance -- why this example is representative of the fund's current strategy
-
-OUTPUT FORMAT
-One case study per knowledge-base-supported example, clearly headed by company/deal name if available or a generic descriptor if the name isn't provided. Output only the finished document -- no preamble.
-
-NOTE: this asset's prompt was drafted from standard IR practice, not the client's own source instructions -- flag any output from this template for review, and treat the "insufficient data" outcome as expected and correct, not a failure.` +
-      KB_GUARDRAILS,
-    buildUserPrompt: (a) =>
-      withKnowledgeBase("Draft the case study document described above.", a),
-    maxTokens: 4000,
-  },
-  {
-    id: "ddq_drafting",
-    label: "DDQ Drafting — Due Diligence Questionnaire",
-    category: "foundational",
-    outputFormat: "docx",
-    tier: "foundational",
-    provider: "perplexity",
-    systemPrompt:
-      `You are drafting a first-pass response to a standard institutional Due Diligence Questionnaire (DDQ) for a private investment fund, in the structure LPs and consultants typically expect (modeled on standard institutional DDQ categories such as those used by ILPA). This is a compliance-adjacent legal/operational document -- accuracy and honesty about gaps matter more than completeness.
-
-CRITICAL: for every question where the knowledge base does not contain a specific, verifiable answer, respond with "To be completed by [Fund]'s legal/compliance team" -- do not guess, estimate, or infer legal, regulatory, or structural details. This applies especially to entity names, registration status, fund terms, service providers, and compliance history.
-
-STRUCTURE (standard DDQ sections)
-1. Firm Overview -- entity name, formation, ownership structure, AUM, offices
-2. Team -- key personnel, roles, relevant experience (only names/roles present in the knowledge base)
-3. Investment Strategy -- mandate, sector/geographic focus, stage, target returns, portfolio construction
-4. Track Record -- prior fund performance and exits (only if present in the knowledge base; otherwise "To be completed")
-5. Fund Terms -- fund size, fees, carry, hurdle, fund life, capital call mechanics
-6. Service Providers -- administrator, auditor, legal counsel, custodian/bank
-7. Compliance & Regulatory -- registration status, regulatory oversight, compliance function
-8. Risk Management -- investment risk process, operational risk controls
-9. ESG -- policy and integration approach, if present in the knowledge base
-10. Operations -- reporting cadence, valuation policy, cybersecurity/data practices
-
-OUTPUT FORMAT
-Number each section and question clearly. Use "To be completed by [Fund]'s legal/compliance team" liberally rather than inferring -- this is expected to be a partially-complete first draft that the fund's own team and counsel finish, not a final document. Output only the finished draft -- no preamble.
-
-NOTE: this asset's prompt was drafted from standard institutional DDQ structure, not the client's own source instructions or actual legal counsel review -- this document MUST be reviewed by qualified legal/compliance counsel before ever being shared with an investor, regardless of how complete it looks.` +
-      KB_GUARDRAILS,
-    buildUserPrompt: (a) =>
-      withKnowledgeBase("Draft the first-pass DDQ response described above.", a),
-    maxTokens: 9000,
   },
 
   // =====================================================================
@@ -1865,6 +1827,19 @@ export function allFoundationalApproved(
   assets: { asset_key: string; approval_status: string }[]
 ): boolean {
   return REQUIRED_FOUNDATIONAL_ASSET_IDS.every((id) =>
+    assets.some((a) => a.asset_key === id && a.approval_status === "approved")
+  );
+}
+
+// Gate for generating Stage 2 at all -- both Stage 1 assets (ICP, Brand
+// Identity) must be approved first. Used both to auto-trigger Stage 2
+// generation the moment Stage 1 completes (see app/api/assets/review/route.ts)
+// and to block a direct/manual attempt to generate a Stage 2 asset early
+// (see app/api/generate/route.ts).
+export function stage1FoundationalApproved(
+  assets: { asset_key: string; approval_status: string }[]
+): boolean {
+  return STAGE_1_FOUNDATIONAL_ASSET_IDS.every((id) =>
     assets.some((a) => a.asset_key === id && a.approval_status === "approved")
   );
 }

@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAssetTemplate, stage1FoundationalApproved } from "@/config/assets";
+import { generateFoundationalBatch } from "@/lib/assets/generateFoundational";
+import type { GeneratedAsset } from "@/types/database";
 
 type ReviewAction = "approve" | "reject" | "save_edit";
 
@@ -58,7 +61,7 @@ export async function POST(request: Request) {
 
   const { data: asset } = await supabase
     .from("generated_assets")
-    .select("id, approval_status")
+    .select("id, project_id, asset_key, approval_status")
     .eq("id", assetId)
     .maybeSingle();
 
@@ -97,9 +100,65 @@ export async function POST(request: Request) {
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
+
+    // If approving this asset just completed Stage 1 (ICP + Brand
+    // Identity), auto-trigger Stage 2 (Brand Guidelines + Messaging
+    // Framework) generation immediately -- this is the two-step
+    // foundational flow: nobody has to remember to click a second
+    // "Generate Stage 2" button. Awaited deliberately, same reasoning as
+    // the original onboarding-completion trigger: a serverless function
+    // teardown can't kill it mid-generation if we wait for it here rather
+    // than firing it off in the background.
+    const template = getAssetTemplate(asset.asset_key);
+    if (
+      action === "approve" &&
+      template?.tier === "foundational" &&
+      template.foundationalStage === 1
+    ) {
+      const { data: projectAssets } = await supabase
+        .from("generated_assets")
+        .select("asset_key, approval_status")
+        .eq("project_id", asset.project_id)
+        .returns<Pick<GeneratedAsset, "asset_key" | "approval_status">[]>();
+
+      if (stage1FoundationalApproved(projectAssets ?? [])) {
+        const { data: onboarding } = await supabase
+          .from("onboarding_responses")
+          .select("answers")
+          .eq("project_id", asset.project_id)
+          .maybeSingle();
+
+        const { data: projectRow } = await supabase
+          .from("projects")
+          .select("client_id")
+          .eq("id", asset.project_id)
+          .maybeSingle();
+
+        if (onboarding?.answers) {
+          try {
+            await generateFoundationalBatch(
+              supabase,
+              asset.project_id,
+              onboarding.answers,
+              projectRow?.client_id ?? null,
+              2
+            );
+          } catch (err) {
+            // Approval itself already succeeded and was saved above --
+            // don't fail this request over a Stage 2 kickoff problem.
+            // Staff can retry via the "Generate Stage 2" button in the UI;
+            // check Vercel logs for the actual cause.
+            console.error(
+              `Stage 2 auto-generation failed for project ${asset.project_id}:`,
+              err instanceof Error ? err.message : err
+            );
+          }
+        }
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: "Unknown action" }, { status: 400 });
 }
-

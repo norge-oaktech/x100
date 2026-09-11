@@ -6,19 +6,26 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 
 type OnboardingAnswers = Record<string, string | string[]>;
 
-// Runs every foundational asset in parallel and writes each result as its
-// own generated_assets row. Accepts whatever Supabase client the caller
-// already has -- the admin (service-role) client from the public onboarding
-// action, or the session-aware client from an authenticated team route --
-// since both satisfy the same insert/update shape against this table.
+// Runs every foundational asset for a given stage in parallel and writes
+// each result as its own generated_assets row. Stage 1 (ICP, Brand
+// Identity) is what onboarding submission triggers automatically; Stage 2
+// (Brand Guidelines, Messaging Framework) only ever gets triggered once
+// Stage 1 is fully approved (see the auto-trigger in
+// app/api/assets/review/route.ts, and the manual "Generate Stage N" button
+// in app/api/generate-foundational/route.ts). Accepts whatever Supabase
+// client the caller already has -- the admin (service-role) client from the
+// public onboarding action, or the session-aware client from an
+// authenticated team route -- since both satisfy the same insert/update
+// shape against this table.
 export async function generateFoundationalBatch(
   supabase: SupabaseClient,
   projectId: string,
   answers: OnboardingAnswers,
-  clientId: string | null = null
+  clientId: string | null = null,
+  stage: 1 | 2 = 1
 ) {
   const foundationalTemplates = ASSET_TEMPLATES.filter(
-    (t) => t.tier === "foundational"
+    (t) => t.tier === "foundational" && t.foundationalStage === stage
   );
 
   const results = await Promise.allSettled(
