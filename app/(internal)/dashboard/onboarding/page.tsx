@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { ONBOARDING_SECTIONS } from "@/config/onboardingSchema";
 import { UploadAnswersButton } from "./UploadAnswersButton";
+import { DownloadQuestionsButton } from "./DownloadQuestionsButton";
 import type { Project, Client, OnboardingResponse } from "@/types/database";
 
 const STATUS_BADGE_CLASS: Record<string, string> = {
@@ -12,6 +13,12 @@ const STATUS_BADGE_CLASS: Record<string, string> = {
   ready: "b-active",
   archived: "b-draft",
 };
+
+// Same definition used on the project detail page: onboarding is only
+// "done" once status has moved past these two.
+function isOnboardingIncomplete(status: string): boolean {
+  return status === "awaiting_onboarding" || status === "onboarding_in_progress";
+}
 
 export default async function OnboardingOverviewPage() {
   const supabase = createClient();
@@ -35,6 +42,8 @@ export default async function OnboardingOverviewPage() {
     (responses ?? []).map((r) => [r.project_id, r])
   );
 
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "";
+
   return (
     <main className="scroll mx-auto max-w-4xl">
       <div className="page-title">Onboarding</div>
@@ -55,6 +64,7 @@ export default async function OnboardingOverviewPage() {
             const response = responseByProject.get(p.id);
             const completedCount = response?.completed_sections?.length ?? 0;
             const totalSections = ONBOARDING_SECTIONS.length;
+            const incomplete = isOnboardingIncomplete(p.status);
 
             return (
               <div key={p.id} className="card-sm">
@@ -73,8 +83,22 @@ export default async function OnboardingOverviewPage() {
                       {response?.submitted_at &&
                         ` · submitted ${new Date(response.submitted_at).toLocaleDateString()}`}
                     </div>
+                    {incomplete && (
+                      <code
+                        className="tm"
+                        style={{
+                          display: "block",
+                          fontSize: 11,
+                          fontFamily: "var(--font-mono)",
+                          marginTop: 6,
+                        }}
+                      >
+                        {appUrl}/onboard/{p.slug}
+                      </code>
+                    )}
                   </div>
                   <div className="fac gap8" style={{ alignItems: "flex-start" }}>
+                    <DownloadQuestionsButton />
                     <UploadAnswersButton projectId={p.id} />
                     <Link href={`/dashboard/${p.id}`} className="btn btn-ghost btn-xs">
                       Open project
