@@ -285,10 +285,20 @@ export async function POST(request: Request) {
             title: template.label,
             callbackId: assetRow.id,
           });
-          await supabase
+          const { error: heygenIdError } = await supabase
             .from("generated_assets")
             .update({ heygen_video_id: videoId })
             .eq("id", assetRow.id);
+          if (heygenIdError) {
+            // HeyGen render is now running whether we save this or not --
+            // but if this write fails (e.g. the heygen_video_id column
+            // doesn't exist because migration 0008_heygen_video.sql was
+            // never run), the webhook and "Check status" button both lose
+            // their only way to find this asset again. Surface it loudly.
+            console.error(
+              `HeyGen video ${videoId} started for asset ${assetRow.id} but saving heygen_video_id failed: ${heygenIdError.message}`
+            );
+          }
         } else {
           console.error(
             `HeyGen video skipped for asset ${assetRow.id}: no <<<AVATAR_SCRIPT>>> block found in generated content`

@@ -40,11 +40,20 @@ export async function attachHeygenVideoIfReady(
       return { attached: false, reason: "error", message: uploadError.message };
     }
 
-    await supabase.from("asset_files").insert({
+    const { error: insertError } = await supabase.from("asset_files").insert({
       generated_asset_id: assetRow.id,
       format: "mp4",
       storage_path: storagePath,
     });
+
+    if (insertError) {
+      // The file is already sitting in storage at this point but the
+      // asset_files row that makes it show up in the UI failed to write
+      // (e.g. the 'mp4' format check constraint from migration
+      // 0008_heygen_video.sql isn't there because that migration was never
+      // run) -- report it as a real error rather than claiming success.
+      return { attached: false, reason: "error", message: insertError.message };
+    }
 
     return { attached: true };
   } catch (err) {

@@ -28,11 +28,22 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Missing generatedAssetId" }, { status: 400 });
   }
 
-  const { data: assetRow } = await supabase
+  const { data: assetRow, error: selectError } = await supabase
     .from("generated_assets")
     .select("id, project_id, asset_key, heygen_video_id")
     .eq("id", generatedAssetId)
     .maybeSingle();
+
+  if (selectError) {
+    // A real database error (e.g. the heygen_video_id column doesn't exist
+    // because migration 0008_heygen_video.sql was never run) previously
+    // looked identical to "no such row" here -- surface it distinctly so
+    // that's never ambiguous again.
+    return NextResponse.json(
+      { error: `Database error: ${selectError.message}` },
+      { status: 500 }
+    );
+  }
 
   if (!assetRow) {
     return NextResponse.json({ error: "Asset not found" }, { status: 404 });
